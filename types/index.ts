@@ -42,4 +42,6 @@ export type AttendanceRow = {
   /** 분모 — 오늘까지 진행된 수업일 수 */
   total: number
   rate: number
+  /** 출석한 날짜 (YYYY-MM-DD) — 월별 캘린더 스트립용 */
+  dates: string[]
 }

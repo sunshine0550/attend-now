@@ -1,4 +1,4 @@
-import { rateTone } from '@/lib/utils'
+import { rateTone, todayKST } from '@/lib/utils'
 import type { AttendanceRow } from '@/types'
 
 const FILL = { green: 'bg-green', yellow: 'bg-yellow', red: 'bg-red' }
@@ -10,17 +10,49 @@ const TAG = {
 }
 const LABEL = { green: '정상', yellow: '주의', red: '⚠ 위험' }
 
+/** 수업일 하나를 출석/결석/미래로 표시하는 사각형 */
+function CalendarStrip({ sessionDates, attended }: { sessionDates: string[]; attended: string[] }) {
+  const today = todayKST()
+  const present = new Set(attended)
+
+  return (
+    <div className="flex gap-1">
+      {sessionDates.map((date, i) => {
+        const state = present.has(date) ? 'present' : date > today ? 'future' : 'absent'
+        const cls = {
+          present: 'bg-green/20 text-green',
+          absent: 'bg-red/15 text-red',
+          future: 'bg-border text-text3',
+        }[state]
+
+        return (
+          <div
+            key={date}
+            title={`${date} · ${{ present: '출석', absent: '결석', future: '예정' }[state]}`}
+            className={`flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-semibold ${cls}`}
+          >
+            {i + 1}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function AttendanceTable({
   lectureName,
   days,
   total,
   held,
+  sessionDates,
   rows,
 }: {
   lectureName: string
   days: string
   total: number
   held: number
+  /** 이번달 수업일 목록 (미래 포함) */
+  sessionDates: string[]
   rows: AttendanceRow[]
 }) {
   return (
@@ -42,7 +74,7 @@ export default function AttendanceTable({
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              {['학생', '출석', '출석률', '상태'].map((h) => (
+              {['학생', '출석', '출석률', '이번달 기록', '상태'].map((h) => (
                 <th
                   key={h}
                   className="border-b border-border bg-surface2 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text3"
@@ -73,6 +105,9 @@ export default function AttendanceTable({
                         {r.rate}%
                       </div>
                     </div>
+                  </td>
+                  <td className="border-b border-border/50 px-4 py-3">
+                    <CalendarStrip sessionDates={sessionDates} attended={r.dates} />
                   </td>
                   <td className="border-b border-border/50 px-4 py-3">
                     <span className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${TAG[tone]}`}>

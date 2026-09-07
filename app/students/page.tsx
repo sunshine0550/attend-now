@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Shell from '@/components/Shell'
+import StudentDeleteButton from '@/components/StudentDeleteButton'
 import { getStudents } from '@/lib/queries'
 
 export const dynamic = 'force-dynamic'
@@ -18,9 +19,9 @@ export default async function StudentsPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {['이름', '영어 이름', '전화번호'].map((h) => (
+                {['이름', '영어 이름', '전화번호', ''].map((h, i) => (
                   <th
-                    key={h}
+                    key={i}
                     className="border-b border-border bg-surface2 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text3"
                   >
                     {h}
@@ -38,6 +39,9 @@ export default async function StudentsPage() {
                   </td>
                   <td className="border-b border-border/50 px-4 py-3 text-xs text-text2">{s.english_name}</td>
                   <td className="border-b border-border/50 px-4 py-3 text-xs text-text2">{s.phone}</td>
+                  <td className="border-b border-border/50 px-4 py-3 text-right">
+                    <StudentDeleteButton id={s.id} name={s.name} />
+                  </td>
                 </tr>
               ))}
             </tbody>

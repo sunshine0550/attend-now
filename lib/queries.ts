@@ -59,6 +59,7 @@ export async function getLectureAttendance(lectureId: string, month: string): Pr
     const row = byPhone.get(log.student_phone)
     if (row) {
       row.attended++
+      row.dates.push(log.date)
       // 날짜 오름차순이므로 가장 최근에 입력한 이름이 남는다
       row.name = log.student_name
       row.english_name = log.student_english_name
@@ -70,6 +71,7 @@ export async function getLectureAttendance(lectureId: string, month: string): Pr
         attended: 1,
         total: held,
         rate: 0,
+        dates: [log.date],
       })
     }
   }

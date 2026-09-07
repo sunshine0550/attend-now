@@ -12,6 +12,7 @@ export default function LecturesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [selectedDays, setSelectedDays] = useState<string[]>([])
   const [startDate, setStartDate] = useState('')
@@ -41,8 +42,8 @@ export default function LecturesPage() {
   async function save() {
     setError('')
     setSaving(true)
-    const res = await fetch('/api/lectures', {
-      method: 'POST',
+    const res = await fetch(editingId ? `/api/lectures/${editingId}` : '/api/lectures', {
+      method: editingId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lecture_name: name, days, start_date: startDate, end_date: endDate }),
     })
@@ -54,7 +55,17 @@ export default function LecturesPage() {
     load()
   }
 
+  function startEdit(lecture: LectureWithSessions) {
+    setError('')
+    setEditingId(lecture.id)
+    setName(lecture.lecture_name)
+    setSelectedDays([...lecture.days])
+    setStartDate(lecture.start_date)
+    setEndDate(lecture.end_date)
+  }
+
   function reset() {
+    setEditingId(null)
     setName('')
     setSelectedDays([])
     setStartDate('')
@@ -99,20 +110,31 @@ export default function LecturesPage() {
                   {l.days} · {l.start_date.replaceAll('-', '.')} — {l.end_date.replaceAll('-', '.')} · 이번달 {l.total}회
                 </div>
               </div>
-              <button
-                onClick={() => remove(l.id, l.lecture_name)}
-                aria-label={`${l.lecture_name} 삭제`}
-                className="flex h-[30px] w-[30px] items-center justify-center rounded-md border border-border bg-surface2 text-[13px] text-text3 hover:text-red"
-              >
-                🗑️
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => startEdit(l)}
+                  aria-label={`${l.lecture_name} 수정`}
+                  className={`flex h-[30px] w-[30px] items-center justify-center rounded-md border bg-surface2 text-[13px] ${
+                    editingId === l.id ? 'border-accent text-accent' : 'border-border text-text3 hover:text-accent'
+                  }`}
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() => remove(l.id, l.lecture_name)}
+                  aria-label={`${l.lecture_name} 삭제`}
+                  className="flex h-[30px] w-[30px] items-center justify-center rounded-md border border-border bg-surface2 text-[13px] text-text3 hover:text-red"
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
           ))
         )}
       </div>
 
       <div className="rounded-[14px] border border-border bg-surface p-6">
-        <div className="mb-5 text-sm font-bold">새 강의 추가</div>
+        <div className="mb-5 text-sm font-bold">{editingId ? '강의 수정' : '새 강의 추가'}</div>
 
         <div className="mb-5">
           <label htmlFor="lecture-name" className="mb-2 block text-xs font-semibold text-text2">
@@ -191,7 +213,7 @@ export default function LecturesPage() {
             disabled={saving || !name || !days || !startDate || !endDate}
             className="rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
           >
-            {saving ? '저장 중…' : '강의 저장'}
+            {saving ? '저장 중…' : editingId ? '수정 저장' : '강의 저장'}
           </button>
         </div>
       </div>

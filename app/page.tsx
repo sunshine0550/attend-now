@@ -3,7 +3,7 @@ import LectureTabs from '@/components/LectureTabs'
 import Shell from '@/components/Shell'
 import StatsCard from '@/components/StatsCard'
 import { getLectureAttendance, getLectures, getStudents, getTodayAttendance } from '@/lib/queries'
-import { monthRange, todayKST } from '@/lib/utils'
+import { lectureClassDates, monthRange, todayKST } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +64,7 @@ export default async function DashboardPage({
         days={selected.days}
         total={selected.total}
         held={selected.held}
+        sessionDates={lectureClassDates(selected, month)}
         rows={rows}
       />
     </Shell>

@@ -26,17 +26,23 @@ function toUTC(date: string): number {
   return Date.UTC(y, m - 1, d)
 }
 
-/** from ~ to (양쪽 포함) 사이에서 days에 해당하는 요일의 날짜 수 */
-export function countClassDays(days: string, from: string, to: string): number {
+/** from ~ to (양쪽 포함) 사이에서 days에 해당하는 요일의 날짜 목록 (YYYY-MM-DD, 오름차순) */
+export function classDates(days: string, from: string, to: string): string[] {
   const wanted = new Set(parseDays(days))
-  if (wanted.size === 0) return 0
+  if (wanted.size === 0) return []
 
-  let count = 0
+  const dates: string[] = []
   const end = toUTC(to)
   for (let t = toUTC(from); t <= end; t += 86_400_000) {
-    if (wanted.has(new Date(t).getUTCDay())) count++
+    const d = new Date(t)
+    if (wanted.has(d.getUTCDay())) dates.push(d.toISOString().slice(0, 10))
   }
-  return count
+  return dates
+}
+
+/** from ~ to (양쪽 포함) 사이에서 days에 해당하는 요일의 날짜 수 */
+export function countClassDays(days: string, from: string, to: string): number {
+  return classDates(days, from, to).length
 }
 
 /** "2025-09" → { start: "2025-09-01", end: "2025-09-30" } */
@@ -50,18 +56,22 @@ export function monthRange(month: string): { start: string; end: string } {
 const maxDate = (a: string, b: string) => (a > b ? a : b)
 const minDate = (a: string, b: string) => (a < b ? a : b)
 
-/** 강의의 해당 월 총 수업일 수와 오늘까지 진행된 수업일 수 */
-export function lectureSessions(
-  lecture: Pick<Lecture, 'days' | 'start_date' | 'end_date'>,
-  month: string,
-): { total: number; held: number } {
+type LectureSchedule = Pick<Lecture, 'days' | 'start_date' | 'end_date'>
+
+/** 강의의 해당 월 수업일 목록 (강의 기간과 월 범위의 교집합) */
+export function lectureClassDates(lecture: LectureSchedule, month: string): string[] {
   const { start, end } = monthRange(month)
-  const from = maxDate(start, lecture.start_date)
-  const to = minDate(end, lecture.end_date)
+  return classDates(lecture.days, maxDate(start, lecture.start_date), minDate(end, lecture.end_date))
+}
+
+/** 강의의 해당 월 총 수업일 수와 오늘까지 진행된 수업일 수 */
+export function lectureSessions(lecture: LectureSchedule, month: string): { total: number; held: number } {
+  const dates = lectureClassDates(lecture, month)
+  const today = todayKST()
 
   return {
-    total: countClassDays(lecture.days, from, to),
-    held: countClassDays(lecture.days, from, minDate(to, todayKST())),
+    total: dates.length,
+    held: dates.filter((d) => d <= today).length,
   }
 }
 
