@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #0f1117;
+  --color-surface: #181c27;
+  --color-surface2: #1e2335;
+  --color-border: #2a2f45;
+  --color-accent: #5b8df6;
+  --color-accent2: #7c5cf6;
+  --color-green: #34d399;
+  --color-yellow: #fbbf24;
+  --color-red: #f87171;
+  --color-text: #e8eaf0;
+  --color-text2: #8b90a7;
+  --color-text3: #545970;
+
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
