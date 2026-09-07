@@ -1,13 +1,13 @@
 import { supabase } from './supabase'
-import { lectureSessions, monthRange, todayKST } from './utils'
-import type { AttendanceLog, AttendanceRow, Lecture, LectureWithSessions, Student } from '@/types'
+import { monthRange, todayKST } from './utils'
+import type { AttendanceLog, AttendanceRow, Lecture, LectureAttendance, Student } from '@/types'
 
 /**
  * API Route와 서버 컴포넌트가 같은 집계 로직을 쓰도록 여기 모아둔다.
  * (서버 컴포넌트가 자기 API를 HTTP로 다시 호출하지 않게 하려는 목적)
  */
 
-export async function getLectures(month = todayKST().slice(0, 7)): Promise<LectureWithSessions[]> {
+export async function getLectures(): Promise<Lecture[]> {
   const { data, error } = await supabase
     .from('lectures')
     .select('*')
@@ -16,7 +16,7 @@ export async function getLectures(month = todayKST().slice(0, 7)): Promise<Lectu
     .order('created_at')
 
   if (error) throw new Error(error.message)
-  return (data as Lecture[]).map((l) => ({ ...l, ...lectureSessions(l, month) }))
+  return (data ?? []) as Lecture[]
 }
 
 export async function getLecture(id: string): Promise<Lecture | null> {
@@ -34,18 +34,20 @@ export async function getLecture(id: string): Promise<Lecture | null> {
 /**
  * 강의 학생 목록 = 해당 월에 그 강의로 한 번이라도 출석한 학생.
  * (students↔lectures 수강등록 테이블이 없어 attendance_log가 유일한 연결점)
- * 분모(total)는 오늘까지 진행된 수업일 수.
+ *
+ * 출석률 분모는 달력 계산이 아니라 강의의 sessions_per_month 고정값이다.
+ * sessionDates 는 "몇 번째 수업이 언제였나"를 알기 위한 것으로,
+ * 누군가 출석한 날짜를 수업이 열린 날로 본다.
  */
-export async function getLectureAttendance(lectureId: string, month: string): Promise<AttendanceRow[]> {
+export async function getLectureAttendance(lectureId: string, month: string): Promise<LectureAttendance> {
   const lecture = await getLecture(lectureId)
-  if (!lecture) return []
+  if (!lecture) return { rows: [], sessionDates: [] }
 
-  const { held } = lectureSessions(lecture, month)
   const { start, end } = monthRange(month)
 
   const { data, error } = await supabase
     .from('attendance_log')
-    .select('student_phone, student_name, student_english_name, date')
+    .select('student_id, student_name, student_english_name, date')
     .eq('lecture_id', lectureId)
     .is('deleted_at', null)
     .gte('date', start)
@@ -54,9 +56,12 @@ export async function getLectureAttendance(lectureId: string, month: string): Pr
 
   if (error) throw new Error(error.message)
 
-  const byPhone = new Map<string, AttendanceRow>()
+  const total = lecture.sessions_per_month
+  const sessionDates = [...new Set((data ?? []).map((l) => l.date))].sort()
+  const byStudent = new Map<string, AttendanceRow>()
+
   for (const log of data ?? []) {
-    const row = byPhone.get(log.student_phone)
+    const row = byStudent.get(log.student_id)
     if (row) {
       row.attended++
       row.dates.push(log.date)
@@ -64,21 +69,24 @@ export async function getLectureAttendance(lectureId: string, month: string): Pr
       row.name = log.student_name
       row.english_name = log.student_english_name
     } else {
-      byPhone.set(log.student_phone, {
+      byStudent.set(log.student_id, {
+        student_id: log.student_id,
         name: log.student_name,
         english_name: log.student_english_name,
-        phone: log.student_phone,
         attended: 1,
-        total: held,
+        total,
         rate: 0,
         dates: [log.date],
       })
     }
   }
 
-  return [...byPhone.values()]
-    .map((r) => ({ ...r, rate: held ? Math.round((r.attended / held) * 100) : 0 }))
+  const rows = [...byStudent.values()]
+    // 실제 수업이 기준값보다 많이 열리면 100%를 넘을 수 있어 상한을 둔다
+    .map((r) => ({ ...r, rate: total ? Math.min(100, Math.round((r.attended / total) * 100)) : 0 }))
     .sort((a, b) => a.rate - b.rate || a.name.localeCompare(b.name, 'ko'))
+
+  return { rows, sessionDates }
 }
 
 /** QR 페이지 polling용 — 오늘 그 강의에 출석한 학생 (최근 순) */
@@ -118,12 +126,12 @@ export async function getStudentById(id: string): Promise<Student | null> {
   return data as Student | null
 }
 
-/** 학생 상세 — 전화번호로 모든 출석 기록 조회 (최근 순) */
-export async function getStudentLogs(phone: string): Promise<AttendanceLog[]> {
+/** 학생 상세 — 그 학생의 모든 출석 기록 (최근 순) */
+export async function getStudentLogs(studentId: string): Promise<AttendanceLog[]> {
   const { data, error } = await supabase
     .from('attendance_log')
     .select('*')
-    .eq('student_phone', phone)
+    .eq('student_id', studentId)
     .is('deleted_at', null)
     .order('date', { ascending: false })
 

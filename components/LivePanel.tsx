@@ -40,14 +40,17 @@ export default function LivePanel({
     }
   }, [lectureId])
 
-  const pct = enrolled ? Math.round((logs.length / enrolled) * 100) : 0
+  // enrolled 는 페이지 로드 시점의 값이고 logs 는 10초마다 갱신되므로,
+  // 이번달 첫 수업처럼 enrolled 가 아직 작을 때 "18 / 0명" 이 되는 것을 막는다
+  const total = Math.max(enrolled, logs.length)
+  const pct = total ? Math.round((logs.length / total) * 100) : 0
 
   if (compact) {
     return (
       <>
         <div className="mb-2 flex items-baseline gap-2">
           <span className="text-[56px] font-extrabold leading-none text-green">{logs.length}</span>
-          <span className="text-[22px] text-neutral-600">/ {enrolled}명 출석</span>
+          <span className="text-[22px] text-neutral-600">/ {total}명 출석</span>
         </div>
         <div className="mb-6 h-2 w-[280px] rounded-full bg-neutral-800">
           <div className="h-full rounded-full bg-green" style={{ width: `${pct}%` }} />
@@ -65,12 +68,12 @@ export default function LivePanel({
         </div>
         <div className="mb-1 text-4xl font-extrabold leading-none">
           {logs.length}
-          <span className="text-base font-medium text-text3"> / {enrolled}명</span>
+          <span className="text-base font-medium text-text3"> / {total}명</span>
         </div>
         <div className="my-3 h-1.5 rounded-full bg-border">
           <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
         </div>
-        <div className="text-xs text-text3">미출석 {Math.max(enrolled - logs.length, 0)}명 · 10초마다 갱신</div>
+        <div className="text-xs text-text3">미출석 {total - logs.length}명 · 10초마다 갱신</div>
       </div>
 
       <div className="rounded-xl border border-border bg-surface p-5">

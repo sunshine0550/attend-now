@@ -11,7 +11,8 @@ export async function GET(req: Request) {
   if (!lectureId) return NextResponse.json({ error: 'lecture_id 가 필요합니다' }, { status: 400 })
 
   try {
-    return NextResponse.json(await getLectureAttendance(lectureId, month))
+    const { rows } = await getLectureAttendance(lectureId, month)
+    return NextResponse.json(rows)
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
   }
@@ -30,27 +31,60 @@ export async function POST(req: Request) {
   const lecture = await getLecture(lecture_id)
   if (!lecture) return NextResponse.json({ error: '강의를 찾을 수 없습니다' }, { status: 404 })
 
-  // 학생 관리 목록이 자동으로 채워지도록 처음 출석하는 학생은 students에 등록
-  const { data: existing } = await supabase
+  // 전화번호로 학생을 식별한다. 같은 번호면 기존 row와 그 UUID를 재사용한다.
+  // (phone 이 UNIQUE 이므로 deleted_at 필터 없이 조회해야 삭제된 학생도 찾는다)
+  const { data: existing, error: lookupError } = await supabase
     .from('students')
-    .select('id')
+    .select('id, name, english_name, deleted_at')
     .eq('phone', student_phone)
     .maybeSingle()
 
+  if (lookupError) return NextResponse.json({ error: lookupError.message }, { status: 500 })
+
+  let studentId: string
+
   if (!existing) {
-    await supabase.from('students').insert({
-      name: student_name,
-      english_name: student_english_name,
-      phone: student_phone,
-      created_by: TEACHER_ID,
-      updated_by: TEACHER_ID,
-    })
+    const { data: created, error: insertError } = await supabase
+      .from('students')
+      .insert({
+        name: student_name,
+        english_name: student_english_name,
+        phone: student_phone,
+        created_by: TEACHER_ID,
+        updated_by: TEACHER_ID,
+      })
+      .select('id')
+      .single()
+
+    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+    studentId = created.id
+  } else {
+    studentId = existing.id
+
+    if (
+      existing.deleted_at ||
+      existing.name !== student_name ||
+      existing.english_name !== student_english_name
+    ) {
+      // 이름이 바뀌었으면 최신 입력으로 갱신하고,
+      // 삭제됐던 학생이 다시 출석하면 되살린다 (안 그러면 목록에 안 보이는데 출석만 쌓인다)
+      await supabase
+        .from('students')
+        .update({
+          name: student_name,
+          english_name: student_english_name,
+          deleted_at: null,
+          deleted_by: null,
+          updated_by: TEACHER_ID,
+        })
+        .eq('id', studentId)
+    }
   }
 
   const { data, error } = await supabase
     .from('attendance_log')
     .insert({
-      student_phone,
+      student_id: studentId,
       student_name,
       student_english_name,
       lecture_id,
@@ -63,7 +97,7 @@ export async function POST(req: Request) {
     .select()
     .single()
 
-  // UNIQUE(student_phone, lecture_id, date) 위반 = 오늘 이미 출석
+  // UNIQUE(student_id, lecture_id, date) 위반 = 오늘 이미 출석
   if (error?.code === '23505') return NextResponse.json({ already: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

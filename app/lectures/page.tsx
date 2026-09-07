@@ -2,50 +2,63 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Shell from '@/components/Shell'
-import { lectureSessions, todayKST } from '@/lib/utils'
-import type { LectureWithSessions } from '@/types'
+import { formatTimeRange } from '@/lib/utils'
+import type { Lecture } from '@/types'
 
-const DAY_ORDER = ['월', '화', '수', '목', '금', '토', '일']
+/** 선생님 기준값. 달력이 아니라 "월화수목은 한 달 16번" 같은 고정 횟수다. */
+const PRESETS = [
+  { days: '월화수목', sessions: 16, label: '월 · 화 · 수 · 목' },
+  { days: '토', sessions: 4, label: '토요일' },
+  { days: '일', sessions: 4, label: '일요일' },
+  { days: '토일', sessions: 8, label: '토 · 일' },
+]
 
 export default function LecturesPage() {
-  const [lectures, setLectures] = useState<LectureWithSessions[]>([])
+  const [lectures, setLectures] = useState<Lecture[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [selectedDays, setSelectedDays] = useState<string[]>([])
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [preset, setPreset] = useState<(typeof PRESETS)[number] | null>(null)
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/lectures')
-    const json = await res.json()
-    if (!res.ok) setError(json.error ?? '강의 목록을 불러오지 못했습니다')
-    else setLectures(json)
-    setLoading(false)
+    // 서버가 JSON 대신 HTML 에러 페이지를 주는 경우가 있어 파싱 실패까지 잡는다.
+    // finally 가 없으면 "불러오는 중…" 에서 영구히 멈춘다.
+    try {
+      const res = await fetch('/api/lectures')
+      const json = await res.json()
+      if (!res.ok) setError(json.error ?? '강의 목록을 불러오지 못했습니다')
+      else setLectures(json)
+    } catch {
+      setError('서버 응답을 읽을 수 없습니다. 개발 서버를 재시작해 보세요.')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
     load()
   }, [load])
 
-  // 요일 선택 순서와 무관하게 항상 월→일 순서로 저장
-  const days = DAY_ORDER.filter((d) => selectedDays.includes(d)).join('')
-
-  const preview =
-    days && startDate && endDate
-      ? lectureSessions({ days, start_date: startDate, end_date: endDate }, todayKST().slice(0, 7)).total
-      : 0
-
   async function save() {
+    if (!preset) return
     setError('')
     setSaving(true)
+
     const res = await fetch(editingId ? `/api/lectures/${editingId}` : '/api/lectures', {
       method: editingId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lecture_name: name, days, start_date: startDate, end_date: endDate }),
+      body: JSON.stringify({
+        lecture_name: name,
+        days: preset.days,
+        sessions_per_month: preset.sessions,
+        start_time: startTime,
+        end_time: endTime,
+      }),
     })
     const json = await res.json()
     setSaving(false)
@@ -55,21 +68,22 @@ export default function LecturesPage() {
     load()
   }
 
-  function startEdit(lecture: LectureWithSessions) {
+  function startEdit(lecture: Lecture) {
     setError('')
     setEditingId(lecture.id)
     setName(lecture.lecture_name)
-    setSelectedDays([...lecture.days])
-    setStartDate(lecture.start_date)
-    setEndDate(lecture.end_date)
+    setPreset(PRESETS.find((p) => p.days === lecture.days) ?? null)
+    // TIME 은 "10:00:00" 으로 오는데 input[type=time] 은 "10:00" 을 원한다
+    setStartTime(lecture.start_time?.slice(0, 5) ?? '')
+    setEndTime(lecture.end_time?.slice(0, 5) ?? '')
   }
 
   function reset() {
     setEditingId(null)
     setName('')
-    setSelectedDays([])
-    setStartDate('')
-    setEndDate('')
+    setPreset(null)
+    setStartTime('')
+    setEndTime('')
   }
 
   async function remove(id: string, lectureName: string) {
@@ -84,7 +98,7 @@ export default function LecturesPage() {
   }
 
   return (
-    <Shell title="강의 설정" sub="강의를 추가하고 수업 요일을 지정하세요">
+    <Shell title="강의 설정" sub="강의를 추가하고 수업 요일을 선택하세요">
       {error && (
         <div className="mb-5 rounded-lg border border-red/30 bg-red/10 px-4 py-3 text-[13px] text-red">{error}</div>
       )}
@@ -107,7 +121,9 @@ export default function LecturesPage() {
               <div>
                 <div className="text-sm font-semibold">{l.lecture_name}</div>
                 <div className="mt-0.5 text-xs text-text3">
-                  {l.days} · {l.start_date.replaceAll('-', '.')} — {l.end_date.replaceAll('-', '.')} · 이번달 {l.total}회
+                  {l.days}
+                  {formatTimeRange(l.start_time, l.end_time) && ` · ${formatTimeRange(l.start_time, l.end_time)}`} ·
+                  한 달 {l.sessions_per_month}회 기준
                 </div>
               </div>
               <div className="flex gap-2">
@@ -144,58 +160,58 @@ export default function LecturesPage() {
             id="lecture-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="예: D강의, 초급반, 심화반"
+            placeholder="예: Fluency Speaking, 초급반"
             className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-[13px] outline-none focus:border-accent"
           />
         </div>
 
         <div className="mb-5">
           <span className="mb-2 block text-xs font-semibold text-text2">수업 요일</span>
-          <div className="flex gap-2">
-            {DAY_ORDER.map((d) => {
-              const on = selectedDays.includes(d)
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.map((p) => {
+              const on = preset?.days === p.days
               return (
                 <button
-                  key={d}
+                  key={p.days}
                   aria-pressed={on}
-                  onClick={() => setSelectedDays((prev) => (on ? prev.filter((x) => x !== d) : [...prev, d]))}
-                  className={`flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-semibold ${
+                  onClick={() => setPreset(p)}
+                  className={`rounded-lg border px-4 py-2.5 text-left text-[13px] font-semibold ${
                     on ? 'border-accent bg-accent/15 text-accent' : 'border-border bg-surface text-text2'
                   }`}
                 >
-                  {d}
+                  {p.label}
+                  <span className="ml-2 text-[11px] font-medium text-text3">한 달 {p.sessions}회</span>
                 </button>
               )
             })}
           </div>
           <div className="mt-2 text-[11px] text-text3">
-            선택한 요일 기준으로 이번달 수업일 자동 계산 →{' '}
-            <strong className="text-accent">이번달 {preview}회</strong>
+            선택한 횟수가 출석률의 기준이 됩니다. 달력 날짜를 세지 않으므로 매달 동일합니다.
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="mb-5">
-            <label htmlFor="start-date" className="mb-2 block text-xs font-semibold text-text2">
-              시작일
+            <label htmlFor="start-time" className="mb-2 block text-xs font-semibold text-text2">
+              수업 시작 시각 <span className="font-normal text-text3">(선택)</span>
             </label>
             <input
-              id="start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              id="start-time"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
               className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-[13px] outline-none focus:border-accent"
             />
           </div>
           <div className="mb-5">
-            <label htmlFor="end-date" className="mb-2 block text-xs font-semibold text-text2">
-              종료일
+            <label htmlFor="end-time" className="mb-2 block text-xs font-semibold text-text2">
+              수업 종료 시각 <span className="font-normal text-text3">(선택)</span>
             </label>
             <input
-              id="end-date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              id="end-time"
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
               className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-[13px] outline-none focus:border-accent"
             />
           </div>
@@ -210,7 +226,7 @@ export default function LecturesPage() {
           </button>
           <button
             onClick={save}
-            disabled={saving || !name || !days || !startDate || !endDate}
+            disabled={saving || !name || !preset}
             className="rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
           >
             {saving ? '저장 중…' : editingId ? '수정 저장' : '강의 저장'}

@@ -18,11 +18,19 @@ export async function GET(_req: Request, { params }: Ctx) {
 
 export async function PUT(req: Request, { params }: Ctx) {
   const { id } = await params
-  const { lecture_name, days, start_date, end_date, active } = await req.json()
+  const { lecture_name, days, sessions_per_month, start_time, end_time, active } = await req.json()
 
   const { data, error } = await supabase
     .from('lectures')
-    .update({ lecture_name, days, start_date, end_date, active, updated_by: TEACHER_ID })
+    .update({
+      lecture_name,
+      days,
+      sessions_per_month,
+      start_time: start_time || null,
+      end_time: end_time || null,
+      active,
+      updated_by: TEACHER_ID,
+    })
     .eq('id', id)
     .is('deleted_at', null)
     .select()

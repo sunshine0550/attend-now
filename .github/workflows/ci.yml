@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: 타입 검사
+        run: npx tsc --noEmit
+
+      - name: 린트
+        run: npx next lint
+
+      # lib/supabase.ts 가 환경변수 없이 import 되면 예외를 던지므로 더미 값을 준다.
+      # 실제 DB 에 접속하지 않고 빌드/번들 검증만 한다.
+      - name: 빌드
+        run: npm run build
+        env:
+          SUPABASE_URL: https://ci-dummy.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-dummy-key
+          TEACHER_ID: 00000000-0000-0000-0000-000000000000

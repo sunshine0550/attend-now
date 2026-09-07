@@ -1,6 +1,6 @@
 import AttendForm from '@/components/AttendForm'
 import { getLecture } from '@/lib/queries'
-import { formatDateKo, todayKST } from '@/lib/utils'
+import { formatDateKo, formatTimeRange, todayKST } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +25,11 @@ export default async function AttendPage({ params }: { params: Promise<{ lecture
               <div>
                 <div className="mb-[3px] text-[10px] font-semibold uppercase tracking-wider text-accent">출석 강의</div>
                 <div className="text-lg font-extrabold">{lecture.lecture_name}</div>
-                <div className="mt-0.5 text-[11px] text-text3">{formatDateKo(todayKST())}</div>
+                <div className="mt-0.5 text-[11px] text-text3">
+                  {formatDateKo(todayKST())}
+                  {formatTimeRange(lecture.start_time, lecture.end_time) &&
+                    ` · ${formatTimeRange(lecture.start_time, lecture.end_time)}`}
+                </div>
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-base text-white">
                 ✓

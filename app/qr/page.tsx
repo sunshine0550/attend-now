@@ -4,14 +4,15 @@ import LivePanel from '@/components/LivePanel'
 import QRCode from '@/components/QRCode'
 import Shell from '@/components/Shell'
 import { getLectureAttendance, getLectures } from '@/lib/queries'
-import { formatDateKo, todayKST } from '@/lib/utils'
+import { attendUrl } from '@/lib/site-url'
+import { formatDateKo, formatTimeRange, todayKST } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 export default async function QRPage({ searchParams }: { searchParams: Promise<{ lecture_id?: string }> }) {
   const { lecture_id } = await searchParams
   const month = todayKST().slice(0, 7)
-  const lectures = await getLectures(month)
+  const lectures = await getLectures()
 
   if (lectures.length === 0) {
     return (
@@ -24,7 +25,7 @@ export default async function QRPage({ searchParams }: { searchParams: Promise<{
   }
 
   const selected = lectures.find((l) => l.id === lecture_id) ?? lectures[0]
-  const rows = await getLectureAttendance(selected.id, month)
+  const { rows, sessionDates } = await getLectureAttendance(selected.id, month)
 
   return (
     <Shell title="QR 출석 코드" sub="수업 시작 시 학생들에게 보여주세요">
@@ -32,7 +33,7 @@ export default async function QRPage({ searchParams }: { searchParams: Promise<{
 
       <div className="flex flex-wrap items-start gap-7">
         <div className="shrink-0">
-          <QRCode lectureId={selected.id} size={200} />
+          <QRCode lectureId={selected.id} url={attendUrl(selected.id)} size={200} />
           <Link
             href={`/qr/fullscreen?lecture_id=${selected.id}`}
             className="mt-3 block rounded-lg bg-accent px-4 py-2 text-center text-xs font-semibold text-white"
@@ -46,9 +47,13 @@ export default async function QRPage({ searchParams }: { searchParams: Promise<{
             <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-text3">현재 수업 정보</div>
             <div className="mb-1 text-[22px] font-extrabold">{selected.lecture_name}</div>
             <div className="mb-4 text-[13px] text-text3">
-              {selected.days} · 이번달 {selected.total}회 중 {selected.held}회 진행
+              {selected.days} · 이번달 기준 {selected.sessions_per_month}회 중 {sessionDates.length}회 진행
             </div>
-            <div className="text-xs text-text3">{formatDateKo(todayKST())}</div>
+            <div className="text-xs text-text3">
+              {formatDateKo(todayKST())}
+              {formatTimeRange(selected.start_time, selected.end_time) &&
+                ` · ${formatTimeRange(selected.start_time, selected.end_time)}`}
+            </div>
           </div>
 
           <LivePanel lectureId={selected.id} enrolled={rows.length} />

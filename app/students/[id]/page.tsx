@@ -8,7 +8,6 @@ import { formatDateKo, monthRange, rateTone, todayKST } from '@/lib/utils'
 export const dynamic = 'force-dynamic'
 
 const RATE_TEXT = { green: 'text-green', yellow: 'text-yellow', red: 'text-red' }
-const RATE_TAG = { green: 'bg-green/12 text-green', yellow: 'bg-yellow/12 text-yellow', red: 'bg-red/12 text-red' }
 
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,7 +16,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
 
   const month = todayKST().slice(0, 7)
   const { start, end } = monthRange(month)
-  const [lectures, logs] = await Promise.all([getLectures(month), getStudentLogs(student.phone)])
+  const [lectures, logs] = await Promise.all([getLectures(), getStudentLogs(student.id)])
 
   const monthLogs = logs.filter((l) => l.date >= start && l.date <= end)
 
@@ -25,16 +24,18 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   const perLecture = lectures
     .map((lecture) => {
       const attended = monthLogs.filter((l) => l.lecture_id === lecture.id).length
+      const total = lecture.sessions_per_month
       return {
         lecture,
         attended,
-        rate: lecture.held ? Math.round((attended / lecture.held) * 100) : 0,
+        total,
+        rate: total ? Math.min(100, Math.round((attended / total) * 100)) : 0,
       }
     })
     .filter((x) => x.attended > 0)
 
   const totalAttended = perLecture.reduce((s, x) => s + x.attended, 0)
-  const totalHeld = perLecture.reduce((s, x) => s + x.lecture.held, 0)
+  const totalSessions = perLecture.reduce((s, x) => s + x.total, 0)
   const avgRate = perLecture.length ? Math.round(perLecture.reduce((s, x) => s + x.rate, 0) / perLecture.length) : 0
   const tone = rateTone(avgRate)
 
@@ -54,18 +55,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             {student.english_name} · {student.phone}
           </div>
         </div>
-        {perLecture.length > 0 && (
-          <div className="ml-auto">
-            <span className={`rounded px-3.5 py-1.5 text-[13px] font-semibold ${RATE_TAG[tone]}`}>
-              {tone === 'red' ? '⚠ 출석 위험' : tone === 'yellow' ? '출석 주의' : '출석 양호'}
-            </span>
-          </div>
-        )}
       </div>
 
       <div className="mb-7 grid grid-cols-3 gap-4">
         <StatsCard label="이번달 평균 출석률" value={avgRate} unit="%" tone={tone} />
-        <StatsCard label="이번달 출석 횟수" value={totalAttended} unit="회" sub={`총 ${totalHeld}회 중`} />
+        <StatsCard label="이번달 출석 횟수" value={totalAttended} unit="회" sub={`총 ${totalSessions}회 중`} />
         <StatsCard label="출석 중인 강의 수" value={perLecture.length} unit="개" />
       </div>
 
@@ -77,7 +71,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         </div>
       ) : (
         <div className="mb-6">
-          {perLecture.map(({ lecture, attended, rate }) => (
+          {perLecture.map(({ lecture, attended, total, rate }) => (
             <div
               key={lecture.id}
               className="mb-2.5 flex items-center justify-between rounded-xl border border-border bg-surface px-5 py-4"
@@ -85,13 +79,13 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               <div>
                 <div className="text-sm font-semibold">{lecture.lecture_name}</div>
                 <div className="mt-0.5 text-xs text-text3">
-                  {lecture.days} · 이번달 {lecture.total}회 · 현재 {lecture.held}회 진행
+                  {lecture.days} · 이번달 기준 {total}회
                 </div>
               </div>
               <div className="text-right">
                 <div className={`text-[22px] font-bold ${RATE_TEXT[rateTone(rate)]}`}>{rate}%</div>
                 <div className="text-[11px] text-text3">
-                  {attended} / {lecture.held}회 출석
+                  {attended} / {total}회 출석
                 </div>
               </div>
             </div>
