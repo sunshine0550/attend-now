@@ -11,6 +11,8 @@ export default function AttendForm({ lectureId, lectureName }: { lectureId: stri
   const [phone, setPhone] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
+  /** 오늘 이 수업에 이미 출석한 상태 — 재제출을 막는다 */
+  const [already, setAlready] = useState(false)
 
   const valid = name.trim() && englishName.trim() && /^010-\d{4}-\d{4}$/.test(phone)
 
@@ -36,7 +38,8 @@ export default function AttendForm({ lectureId, lectureName }: { lectureId: stri
     }
     if (json.already) {
       setSubmitting(false)
-      return setMessage('오늘 이미 출석했습니다')
+      setAlready(true)
+      return
     }
 
     const params = new URLSearchParams({
@@ -45,6 +48,26 @@ export default function AttendForm({ lectureId, lectureName }: { lectureId: stri
       at: json.attended_at,
     })
     router.push(`/done?${params}`)
+  }
+
+  // 이미 출석한 경우 폼을 감추고 안내만 보여준다 (다시 누를 수 없게)
+  if (already) {
+    return (
+      <div className="py-2">
+        <div className="mx-auto mb-5 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-yellow/12 text-[32px]">
+          🙌
+        </div>
+        <div className="mb-2 text-[22px] font-bold">출석 체크 완료</div>
+        <div className="text-[13px] leading-relaxed text-text3">
+          오늘 <span className="font-semibold text-text2">{lectureName}</span> 출석은
+          <br />
+          이미 완료되었습니다
+        </div>
+        <div className="mt-6 rounded-[10px] bg-surface2 px-4 py-3 text-xs text-text3">
+          한 수업당 하루 한 번만 출석할 수 있습니다
+        </div>
+      </div>
+    )
   }
 
   return (

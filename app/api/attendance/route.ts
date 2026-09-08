@@ -60,25 +60,6 @@ export async function POST(req: Request) {
     studentId = created.id
   } else {
     studentId = existing.id
-
-    if (
-      existing.deleted_at ||
-      existing.name !== student_name ||
-      existing.english_name !== student_english_name
-    ) {
-      // 이름이 바뀌었으면 최신 입력으로 갱신하고,
-      // 삭제됐던 학생이 다시 출석하면 되살린다 (안 그러면 목록에 안 보이는데 출석만 쌓인다)
-      await supabase
-        .from('students')
-        .update({
-          name: student_name,
-          english_name: student_english_name,
-          deleted_at: null,
-          deleted_by: null,
-          updated_by: TEACHER_ID,
-        })
-        .eq('id', studentId)
-    }
   }
 
   const { data, error } = await supabase
@@ -97,9 +78,30 @@ export async function POST(req: Request) {
     .select()
     .single()
 
-  // UNIQUE(student_id, lecture_id, date) 위반 = 오늘 이미 출석
+  // UNIQUE(student_id, lecture_id, date) 위반 = 오늘 그 수업에 이미 출석했다.
+  // 한 수업당 하루 한 번만 기록되도록 DB 제약이 막아준다.
   if (error?.code === '23505') return NextResponse.json({ already: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // 출석이 실제로 기록된 뒤에만 학생 정보를 손댄다.
+  // 중복 스캔으로 삭제된 학생이 되살아나면 안 된다.
+  if (
+    existing &&
+    (existing.deleted_at ||
+      existing.name !== student_name ||
+      existing.english_name !== student_english_name)
+  ) {
+    await supabase
+      .from('students')
+      .update({
+        name: student_name,
+        english_name: student_english_name,
+        deleted_at: null,
+        deleted_by: null,
+        updated_by: TEACHER_ID,
+      })
+      .eq('id', studentId)
+  }
 
   return NextResponse.json(data, { status: 201 })
 }

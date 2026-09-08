@@ -45,11 +45,14 @@ export async function getLectureAttendance(lectureId: string, month: string): Pr
 
   const { start, end } = monthRange(month)
 
+  // students!inner + students.deleted_at 필터 = 삭제된 학생의 출석 기록은 제외.
+  // 중간에 그만둔 학생을 삭제하면 그 달 출석 기록까지 출석부에서 사라져야 한다.
   const { data, error } = await supabase
     .from('attendance_log')
-    .select('student_id, student_name, student_english_name, date')
+    .select('student_id, student_name, student_english_name, date, students!inner(id)')
     .eq('lecture_id', lectureId)
     .is('deleted_at', null)
+    .is('students.deleted_at', null)
     .gte('date', start)
     .lte('date', end)
     .order('date')
@@ -89,14 +92,15 @@ export async function getLectureAttendance(lectureId: string, month: string): Pr
   return { rows, sessionDates }
 }
 
-/** QR 페이지 polling용 — 오늘 그 강의에 출석한 학생 (최근 순) */
+/** QR 페이지 polling용 — 오늘 그 강의에 출석한 학생 (최근 순). 삭제된 학생은 제외 */
 export async function getTodayAttendance(lectureId: string): Promise<AttendanceLog[]> {
   const { data, error } = await supabase
     .from('attendance_log')
-    .select('*')
+    .select('*, students!inner(id)')
     .eq('lecture_id', lectureId)
     .eq('date', todayKST())
     .is('deleted_at', null)
+    .is('students.deleted_at', null)
     .order('attended_at', { ascending: false })
 
   if (error) throw new Error(error.message)
