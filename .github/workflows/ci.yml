@@ -12,9 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 로컬 개발 환경과 같은 메이저 버전으로 맞춘다.
+      # 버전이 다르면 npm 이 락파일의 플랫폼별 optional 의존성을 다르게 취급해
+      # `npm ci` 가 "package.json and package-lock.json are not in sync" 로 실패한다.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - run: npm ci
