@@ -116,7 +116,7 @@ export default function LecturesPage() {
           lectures.map((l) => (
             <div
               key={l.id}
-              className="mb-2 flex items-center justify-between rounded-[10px] border border-border bg-surface px-[18px] py-3.5"
+              className="mb-2 flex items-center justify-between gap-3 rounded-[10px] border border-border bg-surface px-4 py-3.5 sm:px-[18px]"
             >
               <div>
                 <div className="text-sm font-semibold">{l.lecture_name}</div>
@@ -149,7 +149,7 @@ export default function LecturesPage() {
         )}
       </div>
 
-      <div className="rounded-[14px] border border-border bg-surface p-6">
+      <div className="rounded-[14px] border border-border bg-surface p-4 sm:p-6">
         <div className="mb-5 text-sm font-bold">{editingId ? '강의 수정' : '새 강의 추가'}</div>
 
         <div className="mb-5">
@@ -190,7 +190,7 @@ export default function LecturesPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
           <div className="mb-5">
             <label htmlFor="start-time" className="mb-2 block text-xs font-semibold text-text2">
               수업 시작 시각 <span className="font-normal text-text3">(선택)</span>

@@ -20,7 +20,7 @@ function SessionSlots({
   const present = new Set(attended)
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex gap-1">
       {Array.from({ length: slots }, (_, i) => {
         const date = sessionDates[i]
 
@@ -29,7 +29,7 @@ function SessionSlots({
           return (
             <div
               key={i}
-              className="flex h-[18px] w-[18px] items-center justify-center rounded bg-border text-[9px] font-semibold text-text3"
+              className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-border text-[9px] font-semibold text-text3"
             >
               {i + 1}
             </div>
@@ -41,7 +41,7 @@ function SessionSlots({
           <div
             key={i}
             title={`${i + 1}번째 수업 · ${date} · ${here ? '출석' : '결석'}`}
-            className={`flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-semibold ${
+            className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded text-[9px] font-semibold ${
               here ? 'bg-green/20 text-green' : 'bg-red/15 text-red'
             }`}
           >
@@ -73,7 +73,7 @@ export default function AttendanceTable({
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+      <div className="flex flex-col gap-1 border-b border-border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="text-sm font-semibold">
           {lectureName} — {days} 출석부
         </div>
@@ -87,13 +87,13 @@ export default function AttendanceTable({
         <div className="px-5 py-12 text-center text-[13px] text-text3">출석 기록이 없습니다</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full min-w-[680px] border-collapse">
             <thead>
               <tr>
                 {['학생', '출석', '출석률', '이번달 기록'].map((h) => (
                   <th
                     key={h}
-                    className="border-b border-border bg-surface2 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text3"
+                    className="whitespace-nowrap border-b border-border bg-surface2 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text3"
                   >
                     {h}
                   </th>

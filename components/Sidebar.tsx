@@ -10,13 +10,13 @@ const NAV = [
   { href: '/qr', icon: '🔲', label: 'QR 띄우기' },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
 
   return (
-    <aside className="w-[220px] shrink-0 border-r border-border bg-surface py-6">
+    <div className="flex h-full flex-col border-r border-border bg-surface py-6">
       <div className="mb-4 flex items-center gap-2 border-b border-border px-5 pb-6">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent2 text-sm">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent2 text-sm">
           📋
         </div>
         <div>
@@ -33,7 +33,8 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium ${
+              onClick={onNavigate}
+              className={`mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-medium ${
                 active ? 'bg-accent/12 text-accent' : 'text-text2 hover:bg-white/[0.03]'
               }`}
             >
@@ -43,6 +44,6 @@ export default function Sidebar() {
           )
         })}
       </nav>
-    </aside>
+    </div>
   )
 }

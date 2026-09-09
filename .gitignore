@@ -141,3 +141,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Claude Code 로컬 도구 설정 (dev 서버 실행용) — 프로젝트 코드가 아님
+.claude/launch.json

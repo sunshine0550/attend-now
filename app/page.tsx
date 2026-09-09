@@ -34,7 +34,7 @@ export default async function DashboardPage({
 
   const selected = lectures.find((l) => l.id === lecture_id) ?? lectures[0]
   const [{ rows, sessionDates }, todayLogs] = await Promise.all([
-    getLectureAttendance(selected.id, month),
+    getLectureAttendance(selected, month),
     isCurrentMonth ? getTodayAttendance(selected.id) : Promise.resolve([]),
   ])
 
@@ -60,7 +60,7 @@ export default async function DashboardPage({
           >
             ◀
           </Link>
-          <span className="min-w-[80px] text-center text-[13px] font-semibold">{month.replace('-', '. ')}</span>
+          <span className="min-w-[64px] text-center text-xs font-semibold sm:min-w-[80px] sm:text-[13px]">{month.replace('-', '. ')}</span>
           {isCurrentMonth ? (
             <span
               aria-disabled
@@ -80,7 +80,7 @@ export default async function DashboardPage({
         </div>
       }
     >
-      <div className="mb-7 grid grid-cols-4 gap-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:mb-7 lg:grid-cols-4 lg:gap-4">
         <StatsCard label="전체 학생" value={students.length} unit="명" sub="등록된 학생 전체" />
         <StatsCard
           label="평균 출석률"
