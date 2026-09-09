@@ -45,7 +45,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         ← 학생 목록
       </Link>
 
-      <div className="mb-7 flex items-center gap-4">
+      <div className="mb-6 flex items-center gap-3 sm:gap-4 lg:mb-7">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent2 text-lg font-bold text-white">
           {student.name.charAt(0)}
         </div>
@@ -57,7 +57,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <div className="mb-7 grid grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:mb-7 lg:gap-4">
         <StatsCard label="이번달 평균 출석률" value={avgRate} unit="%" tone={tone} />
         <StatsCard label="이번달 출석 횟수" value={totalAttended} unit="회" sub={`총 ${totalSessions}회 중`} />
         <StatsCard label="출석 중인 강의 수" value={perLecture.length} unit="개" />
@@ -74,7 +74,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           {perLecture.map(({ lecture, attended, total, rate }) => (
             <div
               key={lecture.id}
-              className="mb-2.5 flex items-center justify-between rounded-xl border border-border bg-surface px-5 py-4"
+              className="mb-2.5 flex flex-col gap-2 rounded-xl border border-border bg-surface px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
             >
               <div>
                 <div className="text-sm font-semibold">{lecture.lecture_name}</div>
@@ -82,7 +82,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                   {lecture.days} · 이번달 기준 {total}회
                 </div>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right">
                 <div className={`text-[22px] font-bold ${RATE_TEXT[rateTone(rate)]}`}>{rate}%</div>
                 <div className="text-[11px] text-text3">
                   {attended} / {total}회 출석

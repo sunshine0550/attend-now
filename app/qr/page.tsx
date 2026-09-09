@@ -25,14 +25,14 @@ export default async function QRPage({ searchParams }: { searchParams: Promise<{
   }
 
   const selected = lectures.find((l) => l.id === lecture_id) ?? lectures[0]
-  const { rows, sessionDates } = await getLectureAttendance(selected.id, month)
+  const { rows, sessionDates } = await getLectureAttendance(selected, month)
 
   return (
     <Shell title="QR 출석 코드" sub="수업 시작 시 학생들에게 보여주세요">
       <LectureTabs lectures={lectures} selectedId={selected.id} basePath="/qr" />
 
-      <div className="flex flex-wrap items-start gap-7">
-        <div className="shrink-0">
+      <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:gap-7">
+        <div className="w-full max-w-[280px] shrink-0 lg:w-auto lg:max-w-none">
           <QRCode lectureId={selected.id} url={attendUrl(selected.id)} size={200} />
           <Link
             href={`/qr/fullscreen?lecture_id=${selected.id}`}
@@ -42,7 +42,7 @@ export default async function QRPage({ searchParams }: { searchParams: Promise<{
           </Link>
         </div>
 
-        <div className="min-w-[220px] flex-1">
+        <div className="w-full min-w-0 flex-1">
           <div className="mb-4 rounded-xl border border-border bg-surface p-5">
             <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-text3">현재 수업 정보</div>
             <div className="mb-1 text-[22px] font-extrabold">{selected.lecture_name}</div>

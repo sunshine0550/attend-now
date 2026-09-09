@@ -11,7 +11,10 @@ export async function GET(req: Request) {
   if (!lectureId) return NextResponse.json({ error: 'lecture_id 가 필요합니다' }, { status: 400 })
 
   try {
-    const { rows } = await getLectureAttendance(lectureId, month)
+    const lecture = await getLecture(lectureId)
+    if (!lecture) return NextResponse.json({ error: '강의를 찾을 수 없습니다' }, { status: 404 })
+
+    const { rows } = await getLectureAttendance(lecture, month)
     return NextResponse.json(rows)
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })

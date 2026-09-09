@@ -35,14 +35,14 @@ export async function getLecture(id: string): Promise<Lecture | null> {
  * 강의 학생 목록 = 해당 월에 그 강의로 한 번이라도 출석한 학생.
  * (students↔lectures 수강등록 테이블이 없어 attendance_log가 유일한 연결점)
  *
+ * 강의 객체를 그대로 받는다 — 호출자가 이미 갖고 있는데 id 로 다시 조회하면
+ * DB 왕복이 한 번 더 늘고, 그 왕복이 끝나야 다음 쿼리가 시작되므로 첫 응답이 그만큼 느려진다.
+ *
  * 출석률 분모는 달력 계산이 아니라 강의의 sessions_per_month 고정값이다.
  * sessionDates 는 "몇 번째 수업이 언제였나"를 알기 위한 것으로,
  * 누군가 출석한 날짜를 수업이 열린 날로 본다.
  */
-export async function getLectureAttendance(lectureId: string, month: string): Promise<LectureAttendance> {
-  const lecture = await getLecture(lectureId)
-  if (!lecture) return { rows: [], sessionDates: [] }
-
+export async function getLectureAttendance(lecture: Lecture, month: string): Promise<LectureAttendance> {
   const { start, end } = monthRange(month)
 
   // students!inner + students.deleted_at 필터 = 삭제된 학생의 출석 기록은 제외.
@@ -50,7 +50,7 @@ export async function getLectureAttendance(lectureId: string, month: string): Pr
   const { data, error } = await supabase
     .from('attendance_log')
     .select('student_id, student_name, student_english_name, date, students!inner(id)')
-    .eq('lecture_id', lectureId)
+    .eq('lecture_id', lecture.id)
     .is('deleted_at', null)
     .is('students.deleted_at', null)
     .gte('date', start)

@@ -20,16 +20,16 @@ export default async function FullscreenPage({
   const lecture = await getLecture(lecture_id)
   if (!lecture) notFound()
 
-  const { rows } = await getLectureAttendance(lecture.id, month)
+  const { rows } = await getLectureAttendance(lecture, month)
 
   return (
-    <div className="flex min-h-screen flex-wrap items-center justify-center gap-20 bg-[#0a0a0a] p-10">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-[#0a0a0a] p-6 lg:flex-row lg:gap-20 lg:p-10">
       <EscBack href={`/qr?lecture_id=${lecture.id}`} />
 
-      <div className="text-left text-white">
+      <div className="w-full max-w-[420px] text-left text-white lg:w-auto">
         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-accent">출석 체크</div>
-        <div className="mb-2 text-[52px] font-extrabold leading-tight">{lecture.lecture_name}</div>
-        <div className="mb-8 text-lg text-neutral-500">
+        <div className="mb-2 text-[36px] font-extrabold leading-tight sm:text-[52px]">{lecture.lecture_name}</div>
+        <div className="mb-6 text-sm text-neutral-500 sm:text-lg lg:mb-8">
           {formatDateKo(todayKST())} · {lecture.days}
           {formatTimeRange(lecture.start_time, lecture.end_time) &&
             ` · ${formatTimeRange(lecture.start_time, lecture.end_time)}`}
