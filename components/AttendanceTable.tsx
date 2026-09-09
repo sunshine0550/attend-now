@@ -54,43 +54,43 @@ function SessionSlots({
 }
 
 export default function AttendanceTable({
-  lectureName,
-  days,
+  title,
+  meta,
   sessionsPerMonth,
   sessionDates,
   rows,
 }: {
-  lectureName: string
-  days: string
-  /** 출석률 분모이자 기록 칸 수 */
-  sessionsPerMonth: number
+  title: string
+  meta: string
+  /**
+   * 출석률 분모이자 기록 칸 수.
+   * 전체 탭에서는 학생마다 분모가 달라 칸을 그릴 수 없으므로 null 을 넘긴다.
+   */
+  sessionsPerMonth: number | null
   /** 이번달 수업이 열린 날짜 (오름차순) */
   sessionDates: string[]
   rows: AttendanceRow[]
 }) {
+  const perLecture = sessionsPerMonth !== null
   // 기준보다 수업이 더 열렸으면 칸을 늘려서 감추지 않는다
-  const slots = Math.max(sessionsPerMonth, sessionDates.length)
+  const slots = perLecture ? Math.max(sessionsPerMonth, sessionDates.length) : 0
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
       <div className="flex flex-col gap-1 border-b border-border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <div className="text-sm font-semibold">
-          {lectureName} — {days} 출석부
-        </div>
+        <div className="text-sm font-semibold">{title}</div>
         {/* 지난 달도 볼 수 있으므로 "이번달" 같은 표현을 쓰지 않는다 (월은 페이지 제목에 있다) */}
-        <div className="text-xs text-text3">
-          기준 {sessionsPerMonth}회 · {sessionDates.length}회 진행
-        </div>
+        <div className="text-xs text-text3">{meta}</div>
       </div>
 
       {rows.length === 0 ? (
         <div className="px-5 py-12 text-center text-[13px] text-text3">출석 기록이 없습니다</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] border-collapse">
+          <table className={`w-full border-collapse ${perLecture ? 'min-w-[680px]' : 'min-w-[460px]'}`}>
             <thead>
               <tr>
-                {['학생', '출석', '출석률', '이번달 기록'].map((h) => (
+                {['학생', '출석', '출석률', perLecture ? '이번달 기록' : '수강 강의'].map((h) => (
                   <th
                     key={h}
                     className="whitespace-nowrap border-b border-border bg-surface2 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text3"
@@ -122,8 +122,12 @@ export default function AttendanceTable({
                         </div>
                       </div>
                     </td>
-                    <td className="border-b border-border/50 px-4 py-3">
-                      <SessionSlots sessionDates={sessionDates} attended={r.dates} slots={slots} />
+                    <td className="whitespace-nowrap border-b border-border/50 px-4 py-3">
+                      {perLecture ? (
+                        <SessionSlots sessionDates={sessionDates} attended={r.dates} slots={slots} />
+                      ) : (
+                        <span className="text-xs text-text2">{r.lectureCount}개</span>
+                      )}
                     </td>
                   </tr>
                 )

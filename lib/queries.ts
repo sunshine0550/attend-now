@@ -92,6 +92,93 @@ export async function getLectureAttendance(lecture: Lecture, month: string): Pro
   return { rows, sessionDates }
 }
 
+/**
+ * 전체 탭 — 모든 강의를 통틀어 학생별 출석 집계.
+ *
+ * 분모는 그 학생이 이번달 출석한 강의들의 sessions_per_month 합이다.
+ * (1개 강의만 들으면 16, 2개면 32 — 학생이 실제로 지는 부담만큼만 센다)
+ *
+ * sessionDates 는 비워서 돌려준다. "N번째 수업" 은 강의별 개념이라
+ * 여러 강의를 합치면 의미가 없어진다.
+ */
+export async function getAllAttendance(lectures: Lecture[], month: string): Promise<LectureAttendance> {
+  if (lectures.length === 0) return { rows: [], sessionDates: [] }
+
+  const { start, end } = monthRange(month)
+  const sessionsById = new Map(lectures.map((l) => [l.id, l.sessions_per_month]))
+
+  const { data, error } = await supabase
+    .from('attendance_log')
+    .select('student_id, student_name, student_english_name, date, lecture_id, students!inner(id)')
+    .in(
+      'lecture_id',
+      lectures.map((l) => l.id),
+    )
+    .is('deleted_at', null)
+    .is('students.deleted_at', null)
+    .gte('date', start)
+    .lte('date', end)
+    .order('date')
+
+  if (error) throw new Error(error.message)
+
+  type Acc = { row: AttendanceRow; lectureIds: Set<string> }
+  const byStudent = new Map<string, Acc>()
+
+  for (const log of data ?? []) {
+    const acc = byStudent.get(log.student_id)
+    if (acc) {
+      acc.row.attended++
+      acc.row.dates.push(log.date)
+      acc.row.name = log.student_name
+      acc.row.english_name = log.student_english_name
+      acc.lectureIds.add(log.lecture_id)
+    } else {
+      byStudent.set(log.student_id, {
+        row: {
+          student_id: log.student_id,
+          name: log.student_name,
+          english_name: log.student_english_name,
+          attended: 1,
+          total: 0,
+          rate: 0,
+          dates: [log.date],
+        },
+        lectureIds: new Set([log.lecture_id]),
+      })
+    }
+  }
+
+  const rows = [...byStudent.values()]
+    .map(({ row, lectureIds }) => {
+      const total = [...lectureIds].reduce((s, id) => s + (sessionsById.get(id) ?? 0), 0)
+      return {
+        ...row,
+        total,
+        rate: total ? Math.min(100, Math.round((row.attended / total) * 100)) : 0,
+        lectureCount: lectureIds.size,
+      }
+    })
+    .sort((a, b) => a.rate - b.rate || a.name.localeCompare(b.name, 'ko'))
+
+  return { rows, sessionDates: [] }
+}
+
+/** 해당 월에 새로 등록된 학생 수 (삭제된 학생 제외) */
+export async function getNewStudentCount(month: string): Promise<number> {
+  const { start, end } = monthRange(month)
+
+  const { count, error } = await supabase
+    .from('students')
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null)
+    .gte('created_at', `${start}T00:00:00+09:00`)
+    .lte('created_at', `${end}T23:59:59+09:00`)
+
+  if (error) throw new Error(error.message)
+  return count ?? 0
+}
+
 /** QR 페이지 polling용 — 오늘 그 강의에 출석한 학생 (최근 순). 삭제된 학생은 제외 */
 export async function getTodayAttendance(lectureId: string): Promise<AttendanceLog[]> {
   const { data, error } = await supabase

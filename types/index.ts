@@ -17,6 +17,8 @@ export type Student = {
   name: string
   english_name: string
   phone: string
+  /** 등록 시각 — "이번달 신규 N명" 집계에 쓴다 */
+  created_at: string
 }
 
 export type AttendanceLog = {
@@ -41,6 +43,8 @@ export type AttendanceRow = {
   rate: number
   /** 이 학생이 출석한 날짜 — 이번달 기록 칸 색칠용 */
   dates: string[]
+  /** 전체 탭에서만 채워진다 — 이 학생이 이번달 출석한 강의 수 */
+  lectureCount?: number
 }
 
 export type LectureAttendance = {
