@@ -7,10 +7,12 @@ import type { AttendanceLog, AttendanceRow, Lecture, LectureAttendance, Student 
  * (서버 컴포넌트가 자기 API를 HTTP로 다시 호출하지 않게 하려는 목적)
  */
 
-export async function getLectures(): Promise<Lecture[]> {
+/** 그 선생님의 강의만 */
+export async function getLectures(teacherId: string): Promise<Lecture[]> {
   const { data, error } = await supabase
     .from('lectures')
     .select('*')
+    .eq('teacher_id', teacherId)
     .is('deleted_at', null)
     .eq('active', true)
     .order('created_at')
@@ -19,13 +21,16 @@ export async function getLectures(): Promise<Lecture[]> {
   return (data ?? []) as Lecture[]
 }
 
-export async function getLecture(id: string): Promise<Lecture | null> {
-  const { data, error } = await supabase
-    .from('lectures')
-    .select('*')
-    .eq('id', id)
-    .is('deleted_at', null)
-    .maybeSingle()
+/**
+ * 강의 하나.
+ * teacherId 를 주면 그 선생님 강의인지까지 확인한다(남의 강의 UUID 를 URL 에
+ * 넣어도 열리지 않게). 학생 출석 페이지는 세션이 없으므로 생략한다.
+ */
+export async function getLecture(id: string, teacherId?: string): Promise<Lecture | null> {
+  let query = supabase.from('lectures').select('*').eq('id', id).is('deleted_at', null)
+  if (teacherId) query = query.eq('teacher_id', teacherId)
+
+  const { data, error } = await query.maybeSingle()
 
   if (error) throw new Error(error.message)
   return data as Lecture | null
@@ -165,12 +170,16 @@ export async function getAllAttendance(lectures: Lecture[], month: string): Prom
 }
 
 /** 해당 월에 새로 등록된 학생 수 (삭제된 학생 제외) */
-export async function getNewStudentCount(month: string): Promise<number> {
+export async function getNewStudentCount(teacherId: string, month: string): Promise<number> {
+  const ids = await studentIdsOf(teacherId)
+  if (ids.length === 0) return 0
+
   const { start, end } = monthRange(month)
 
   const { count, error } = await supabase
     .from('students')
     .select('id', { count: 'exact', head: true })
+    .in('id', ids)
     .is('deleted_at', null)
     .gte('created_at', `${start}T00:00:00+09:00`)
     .lte('created_at', `${end}T23:59:59+09:00`)
@@ -194,18 +203,78 @@ export async function getTodayAttendance(lectureId: string): Promise<AttendanceL
   return (data ?? []) as AttendanceLog[]
 }
 
-export async function getStudents(): Promise<Student[]> {
+/**
+ * 그 선생님 강의에 한 번이라도 출석한 학생의 id 집합.
+ * students 테이블에는 선생님 구분이 없어서 attendance_log → lectures 로 거른다.
+ */
+async function studentIdsOf(teacherId: string): Promise<string[]> {
   const { data, error } = await supabase
-    .from('students')
-    .select('*')
+    .from('attendance_log')
+    .select('student_id, lectures!inner(teacher_id)')
+    .eq('lectures.teacher_id', teacherId)
     .is('deleted_at', null)
-    .order('name')
 
   if (error) throw new Error(error.message)
-  return (data ?? []) as Student[]
+  return [...new Set((data ?? []).map((r) => r.student_id))]
 }
 
-export async function getStudentById(id: string): Promise<Student | null> {
+export type StudentPage = { students: Student[]; nextCursor: string | null }
+
+/**
+ * 학생 목록. 영어 이름 오름차순, 커서 기반 페이지네이션.
+ *
+ * offset 이 아니라 커서(마지막 영어 이름)를 쓰는 이유: 스크롤 중에 학생이
+ * 추가/삭제되면 offset 은 항목을 건너뛰거나 중복으로 보여준다.
+ */
+export async function getStudents(
+  teacherId: string,
+  { q, cursor, limit = 10 }: { q?: string; cursor?: string; limit?: number } = {},
+): Promise<StudentPage> {
+  const ids = await studentIdsOf(teacherId)
+  if (ids.length === 0) return { students: [], nextCursor: null }
+
+  let query = supabase
+    .from('students')
+    .select('*')
+    .in('id', ids)
+    .is('deleted_at', null)
+    .order('english_name')
+    .order('id') // 영어 이름이 같을 때 순서를 고정해 커서가 흔들리지 않게
+    .limit(limit + 1) // 한 개 더 받아 다음 페이지 존재 여부를 판단
+
+  if (q?.trim()) {
+    const term = q.trim().replace(/[%,]/g, '')
+    query = query.or(`name.ilike.%${term}%,english_name.ilike.%${term}%,phone.ilike.%${term}%`)
+  }
+  if (cursor) query = query.gt('english_name', cursor)
+
+  const { data, error } = await query
+  if (error) throw new Error(error.message)
+
+  const rows = (data ?? []) as Student[]
+  const hasMore = rows.length > limit
+  const students = hasMore ? rows.slice(0, limit) : rows
+
+  return {
+    students,
+    nextCursor: hasMore ? students[students.length - 1].english_name : null,
+  }
+}
+
+/** 그 선생님 강의에 출석한 학생 총 인원 */
+export async function getStudentCount(teacherId: string): Promise<number> {
+  return (await studentIdsOf(teacherId)).length
+}
+
+/** 내 강의 학생이 아니면 null (남의 학생 상세를 URL 로 열 수 없게) */
+export async function getStudentById(id: string, teacherId: string): Promise<Student | null> {
+  const ids = await studentIdsOf(teacherId)
+  if (!ids.includes(id)) return null
+
+  return getStudentRow(id)
+}
+
+async function getStudentRow(id: string): Promise<Student | null> {
   const { data, error } = await supabase
     .from('students')
     .select('*')

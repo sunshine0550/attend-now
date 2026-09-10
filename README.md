@@ -20,7 +20,8 @@ npm run dev
 | --- | --- |
 | `SUPABASE_URL` | Supabase 프로젝트 Settings → API 의 Project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | 같은 화면의 `service_role` 키 — **서버 전용, 절대 공개 금지** |
-| `TEACHER_ID` | `teachers` 테이블의 선생님 UUID (audit 컬럼에 기록) |
+| `AUTH_SECRET` | 세션 토큰 서명 키. 32자 이상 임의 문자열. 바꾸면 전원 로그아웃됩니다 |
+| `SIGNUP_INVITE_CODE` | 회원가입 시 입력해야 하는 초대 코드 |
 | `SITE_URL` | (선택) QR 에 박을 주소. 커스텀 도메인을 붙였을 때만 지정합니다. Vercel 에서는 `VERCEL_PROJECT_PRODUCTION_URL` 이 자동으로 쓰이므로 보통 비워둡니다 |
 
 모두 `NEXT_PUBLIC_` 접두사가 없습니다. 브라우저로 나가지 않고 서버에서만 읽힙니다.
@@ -33,7 +34,8 @@ npm run dev
 | `/students` · `/students/[id]` | 학생 목록 / 상세 |
 | `/lectures` | 강의 설정 (요일 프리셋·수업 시간) |
 | `/qr` · `/qr/fullscreen` | QR 띄우기 (프로젝터용 전체화면) |
-| `/attend/[lectureId]` · `/done` | 학생 출석 입력 / 완료 |
+| `/login` · `/signup` | 선생님 로그인 / 회원가입 |
+| `/attend/[lectureId]` · `/done` | 학생 출석 입력 / 완료 (로그인 불필요) |
 
 ## 알아둘 점
 
@@ -64,5 +66,12 @@ npm run dev
   운영 도메인이 박히고, 로컬 개발에서만 브라우저의 현재 origin 으로 대체됩니다. 그래서 로컬에서
   휴대폰으로 스캔해 보려면 `localhost` 가 아니라 dev 서버가 알려주는 `http://192.168.x.x:3000` 으로
   접속한 뒤 QR 을 띄워야 합니다.
-- **로그인이 없습니다.** 배포하면 대시보드가 공개되므로 접근 제한을 따로 걸어야 합니다.
-  (DB 는 위 방식으로 막혀 있지만, 대시보드 페이지 자체는 URL 을 아는 사람이면 볼 수 있습니다.)
+- **선생님 로그인이 있습니다.** 모든 선생님 화면·API 는 미들웨어가 지키고, 데이터는
+  로그인한 선생님 기준으로만 조회됩니다. 학생 화면(`/attend`, `/done`)과 출석 제출(POST)만
+  로그인 없이 열려 있습니다 — 학생에게 계정을 요구하면 QR 출석이라는 제품이 성립하지 않습니다.
+- **세션**: accessToken(JWT, 1시간)은 미들웨어가 DB 조회 없이 검증하고,
+  refreshToken(불투명 32바이트)은 `refresh_tokens` 에 SHA-256 해시로만 저장합니다.
+  쓸 때마다 회전하며 만료가 3일 뒤로 갱신되므로 **3일간 사용이 없으면 로그아웃**됩니다.
+  이미 사용된 토큰이 다시 오면 세션 탈취로 보고 그 선생님의 토큰을 전부 폐기합니다.
+- **비밀번호**는 bcrypt(cost 12)로 해싱해 저장하고 응답에 절대 포함하지 않습니다.
+  로그인 실패는 전화번호별로 15분에 5회까지만 허용합니다.

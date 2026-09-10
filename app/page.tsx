@@ -3,12 +3,13 @@ import AttendanceTable from '@/components/AttendanceTable'
 import LectureTabs, { ALL } from '@/components/LectureTabs'
 import Shell from '@/components/Shell'
 import StatsCard from '@/components/StatsCard'
+import { requireTeacher } from '@/lib/auth/session'
 import {
   getAllAttendance,
   getLectureAttendance,
   getLectures,
   getNewStudentCount,
-  getStudents,
+  getStudentCount,
   getTodayAttendance,
 } from '@/lib/queries'
 import { shiftMonth, todayKST } from '@/lib/utils'
@@ -36,6 +37,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ lecture_id?: string; month?: string }>
 }) {
   const { lecture_id, month: monthParam } = await searchParams
+  const teacher = await requireTeacher()
 
   const currentMonth = todayKST().slice(0, 7)
   // 미래 달은 데이터가 없으니 이번달까지만 본다
@@ -43,11 +45,11 @@ export default async function DashboardPage({
   const prevMonth = shiftMonth(month, -1)
   const isCurrentMonth = month === currentMonth
 
-  const [lectures, students] = await Promise.all([getLectures(), getStudents()])
+  const [lectures, studentCount] = await Promise.all([getLectures(teacher.id), getStudentCount(teacher.id)])
 
   if (lectures.length === 0) {
     return (
-      <Shell title="출석 현황" sub="등록된 강의가 없습니다">
+      <Shell teacherName={teacher.name} title="출석 현황" sub="등록된 강의가 없습니다">
         <div className="rounded-xl border border-border bg-surface px-5 py-12 text-center text-[13px] text-text3">
           먼저 <span className="text-accent">강의 설정</span>에서 강의를 추가하세요
         </div>
@@ -63,8 +65,8 @@ export default async function DashboardPage({
     selected ? getLectureAttendance(selected, month) : getAllAttendance(lectures, month),
     selected ? getLectureAttendance(selected, prevMonth) : getAllAttendance(lectures, prevMonth),
     isCurrentMonth && selected ? getTodayAttendance(selected.id) : Promise.resolve([]),
-    getNewStudentCount(month),
-    getNewStudentCount(prevMonth),
+    getNewStudentCount(teacher.id, month),
+    getNewStudentCount(teacher.id, prevMonth),
   ])
 
   const avgRate = avgRateOf(current)
@@ -82,6 +84,7 @@ export default async function DashboardPage({
 
   return (
     <Shell
+      teacherName={teacher.name}
       title={`${y}년 ${m}월 출석 현황`}
       sub={isCurrentMonth ? '이번달' : '지난 기록'}
       action={
@@ -118,7 +121,7 @@ export default async function DashboardPage({
       <div className="mb-6 grid grid-cols-2 gap-3 lg:mb-7 lg:grid-cols-4 lg:gap-4">
         <StatsCard
           label="전체 학생"
-          value={students.length}
+          value={studentCount}
           unit="명"
           sub={newStudents ? `↑ ${newStudents}명 이번 달 추가` : studentDelta.text}
           trend={newStudents ? 'up' : studentDelta.trend}
@@ -159,7 +162,7 @@ export default async function DashboardPage({
         basePath="/"
         month={month}
         showCount
-        allStudentCount={students.length}
+        allStudentCount={studentCount}
       />
 
       <AttendanceTable

@@ -15,6 +15,3 @@ export const supabase = createClient(url, serviceRoleKey, {
   // 서버에서만 쓰므로 세션을 저장하거나 갱신할 필요가 없다
   auth: { persistSession: false, autoRefreshToken: false },
 })
-
-/** audit 컬럼(created_by / updated_by / deleted_by)에 넣을 선생님 UUID */
-export const TEACHER_ID = process.env.TEACHER_ID ?? null

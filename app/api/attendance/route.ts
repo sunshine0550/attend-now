@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getLecture, getLectureAttendance } from '@/lib/queries'
-import { supabase, TEACHER_ID } from '@/lib/supabase'
+import { requireTeacherApi } from '@/lib/auth/api'
+import { supabase } from '@/lib/supabase'
 import { todayKST } from '@/lib/utils'
 
 export async function GET(req: Request) {
+  const teacher = await requireTeacherApi()
+  if (teacher instanceof NextResponse) return teacher
+
   const params = new URL(req.url).searchParams
   const lectureId = params.get('lecture_id')
   const month = params.get('month') ?? todayKST().slice(0, 7)
@@ -11,7 +15,7 @@ export async function GET(req: Request) {
   if (!lectureId) return NextResponse.json({ error: 'lecture_id 가 필요합니다' }, { status: 400 })
 
   try {
-    const lecture = await getLecture(lectureId)
+    const lecture = await getLecture(lectureId, teacher.id)
     if (!lecture) return NextResponse.json({ error: '강의를 찾을 수 없습니다' }, { status: 404 })
 
     const { rows } = await getLectureAttendance(lecture, month)
@@ -37,7 +41,7 @@ async function findStudentByPhone(phone: string) {
  * 이름·영어이름이 달라졌으면 최신 입력으로 갱신하고, 삭제됐던 학생이면 되살린다.
  * 바뀐 게 없으면 쿼리를 보내지 않는다.
  */
-async function syncStudent(student: StudentRow, name: string, englishName: string) {
+async function syncStudent(student: StudentRow, name: string, englishName: string, actorId: string) {
   const stale =
     student.deleted_at !== null || student.name !== name || student.english_name !== englishName
   if (!stale) return
@@ -49,7 +53,7 @@ async function syncStudent(student: StudentRow, name: string, englishName: strin
       english_name: englishName,
       deleted_at: null,
       deleted_by: null,
-      updated_by: TEACHER_ID,
+      updated_by: actorId,
     })
     .eq('id', student.id)
 }
@@ -79,8 +83,9 @@ export async function POST(req: Request) {
         name: student_name,
         english_name: student_english_name,
         phone: student_phone,
-        created_by: TEACHER_ID,
-        updated_by: TEACHER_ID,
+        // 학생은 로그인하지 않으므로 그 강의를 가진 선생님을 기록한다
+        created_by: lecture.teacher_id,
+        updated_by: lecture.teacher_id,
       })
       .select('id, name, english_name, deleted_at')
       .single()
@@ -109,8 +114,8 @@ export async function POST(req: Request) {
       lecture_name: lecture.lecture_name,
       attended_at: new Date().toISOString(),
       date: todayKST(),
-      created_by: TEACHER_ID,
-      updated_by: TEACHER_ID,
+      created_by: lecture.teacher_id,
+      updated_by: lecture.teacher_id,
     })
     .select()
     .single()
@@ -120,24 +125,27 @@ export async function POST(req: Request) {
   if (error?.code === '23505') {
     // 출석은 새로 안 쌓이지만 학생이 왔다는 건 확인됐다.
     // 삭제된 상태였으면 되살리고 이름 변경도 반영한다.
-    await syncStudent(student, student_name, student_english_name)
+    await syncStudent(student, student_name, student_english_name, lecture.teacher_id)
     return NextResponse.json({ already: true })
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  await syncStudent(student, student_name, student_english_name)
+  await syncStudent(student, student_name, student_english_name, lecture.teacher_id)
 
   return NextResponse.json(data, { status: 201 })
 }
 
 /** 소프트 딜리트 — deleted_by 는 서버의 TEACHER_ID 를 쓴다 (클라이언트가 위조할 수 없게) */
 export async function DELETE(req: Request) {
+  const teacher = await requireTeacherApi()
+  if (teacher instanceof NextResponse) return teacher
+
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: 'id 가 필요합니다' }, { status: 400 })
 
   const { data, error } = await supabase
     .from('attendance_log')
-    .update({ deleted_at: new Date().toISOString(), deleted_by: TEACHER_ID })
+    .update({ deleted_at: new Date().toISOString(), deleted_by: teacher.id })
     .eq('id', id)
     .is('deleted_at', null)
     .select()
