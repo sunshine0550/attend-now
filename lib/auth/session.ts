@@ -14,7 +14,7 @@ import {
   verifyAccessToken,
 } from './tokens'
 
-export type Teacher = { id: string; name: string; phone: string }
+export type Teacher = { id: string; name: string; login_id: string }
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -84,7 +84,7 @@ export async function rotateSession(): Promise<Teacher | null> {
 
   const { data: teacher } = await supabase
     .from('teachers')
-    .select('id, name, phone')
+    .select('id, name, login_id')
     .eq('id', row.teacher_id)
     .is('deleted_at', null)
     .maybeSingle()
@@ -132,7 +132,7 @@ export async function getTeacher(): Promise<Teacher | null> {
 
   const { data } = await supabase
     .from('teachers')
-    .select('id, name, phone')
+    .select('id, name, login_id')
     .eq('id', claims.teacherId)
     .is('deleted_at', null)
     .maybeSingle()

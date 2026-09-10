@@ -72,6 +72,17 @@ export default function Sidebar({
           </div>
         </div>
 
+        <Link
+          href="/account"
+          onClick={onNavigate}
+          className={`mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium ${
+            pathname.startsWith('/account') ? 'bg-accent/12 text-accent' : 'text-text2 hover:bg-white/[0.03]'
+          }`}
+        >
+          <span className="text-[15px]">⚙️</span>
+          계정 설정
+        </Link>
+
         <button
           onClick={logout}
           disabled={signingOut}

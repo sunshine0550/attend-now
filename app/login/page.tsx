@@ -4,19 +4,19 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
 import AuthField from '@/components/AuthField'
 import AuthShell, { AuthSwitch } from '@/components/AuthShell'
-import { formatPhone } from '@/lib/utils'
+import { normalizeLoginId } from '@/lib/auth/validate'
 
 function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next')
 
-  const [phone, setPhone] = useState('')
+  const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const valid = /^010-\d{4}-\d{4}$/.test(phone) && password.length > 0
+  const valid = loginId.trim().length > 0 && password.length > 0
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,7 +29,7 @@ function LoginForm() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, password }),
+        body: JSON.stringify({ login_id: normalizeLoginId(loginId), password }),
       })
       const json = await res.json()
 
@@ -61,14 +61,12 @@ function LoginForm() {
         )}
 
         <AuthField
-          id="phone"
-          label="전화번호"
-          type="tel"
-          inputMode="numeric"
+          id="login-id"
+          label="아이디"
           autoComplete="username"
-          value={phone}
-          onChange={(v) => setPhone(formatPhone(v))}
-          placeholder="010-0000-0000"
+          value={loginId}
+          onChange={(v) => setLoginId(v.replace(/\s/g, ''))}
+          placeholder="예: suhyun"
         />
 
         <AuthField

@@ -4,23 +4,24 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import AuthField from '@/components/AuthField'
 import AuthShell, { AuthSwitch } from '@/components/AuthShell'
-import { formatPhone } from '@/lib/utils'
+import { MIN_PASSWORD, loginIdError, normalizeLoginId } from '@/lib/auth/validate'
 
 export default function SignupPage() {
   const router = useRouter()
 
   const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
+  const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [invite, setInvite] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const phoneOk = /^010-\d{4}-\d{4}$/.test(phone)
-  const passwordOk = password.length >= 8
+  const idError = loginId.length > 0 ? loginIdError(loginId) : null
+  const passwordOk = password.length >= MIN_PASSWORD
   const matched = password.length > 0 && password === confirm
-  const valid = name.trim().length > 0 && phoneOk && passwordOk && matched && invite.trim().length > 0
+  const valid =
+    name.trim().length > 0 && loginId.length > 0 && !idError && passwordOk && matched && invite.trim().length > 0
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -33,7 +34,7 @@ export default function SignupPage() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, password, invite: invite.trim() }),
+        body: JSON.stringify({ name, login_id: normalizeLoginId(loginId), password, invite: invite.trim() }),
       })
       const json = await res.json()
 
@@ -73,15 +74,13 @@ export default function SignupPage() {
         />
 
         <AuthField
-          id="phone"
-          label="전화번호"
-          type="tel"
-          inputMode="numeric"
+          id="login-id"
+          label="아이디"
           autoComplete="username"
-          value={phone}
-          onChange={(v) => setPhone(formatPhone(v))}
-          placeholder="010-0000-0000"
-          hint="로그인할 때 아이디로 사용됩니다"
+          value={loginId}
+          onChange={(v) => setLoginId(v.replace(/\s/g, '').toLowerCase())}
+          placeholder="예: suhyun"
+          hint={idError ?? '영문 소문자, 숫자, 밑줄(_) 4~20자'}
         />
 
         <AuthField
@@ -91,8 +90,8 @@ export default function SignupPage() {
           autoComplete="new-password"
           value={password}
           onChange={setPassword}
-          placeholder="8자 이상"
-          hint={password.length > 0 && !passwordOk ? '8자 이상 입력하세요' : undefined}
+          placeholder={`${MIN_PASSWORD}자 이상`}
+          hint={password.length > 0 && !passwordOk ? `${MIN_PASSWORD}자 이상 입력하세요` : undefined}
         />
 
         <AuthField
