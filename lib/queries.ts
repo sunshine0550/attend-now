@@ -169,25 +169,6 @@ export async function getAllAttendance(lectures: Lecture[], month: string): Prom
   return { rows, sessionDates: [] }
 }
 
-/** 해당 월에 새로 등록된 학생 수 (삭제된 학생 제외) */
-export async function getNewStudentCount(teacherId: string, month: string): Promise<number> {
-  const ids = await studentIdsOf(teacherId)
-  if (ids.length === 0) return 0
-
-  const { start, end } = monthRange(month)
-
-  const { count, error } = await supabase
-    .from('students')
-    .select('id', { count: 'exact', head: true })
-    .in('id', ids)
-    .is('deleted_at', null)
-    .gte('created_at', `${start}T00:00:00+09:00`)
-    .lte('created_at', `${end}T23:59:59+09:00`)
-
-  if (error) throw new Error(error.message)
-  return count ?? 0
-}
-
 /** QR 페이지 polling용 — 오늘 그 강의에 출석한 학생 (최근 순). 삭제된 학생은 제외 */
 export async function getTodayAttendance(lectureId: string): Promise<AttendanceLog[]> {
   const { data, error } = await supabase
@@ -210,9 +191,10 @@ export async function getTodayAttendance(lectureId: string): Promise<AttendanceL
 async function studentIdsOf(teacherId: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('attendance_log')
-    .select('student_id, lectures!inner(teacher_id)')
+    .select('student_id, lectures!inner(teacher_id), students!inner(id)')
     .eq('lectures.teacher_id', teacherId)
     .is('deleted_at', null)
+    .is('students.deleted_at', null)
 
   if (error) throw new Error(error.message)
   return [...new Set((data ?? []).map((r) => r.student_id))]
@@ -261,9 +243,31 @@ export async function getStudents(
   }
 }
 
-/** 그 선생님 강의에 출석한 학생 총 인원 */
-export async function getStudentCount(teacherId: string): Promise<number> {
-  return (await studentIdsOf(teacherId)).length
+/**
+ * 해당 월에 한 번이라도 출석한 학생 수 (모든 강의 합산, 삭제된 학생 제외).
+ *
+ * 전체 기간이 아니라 그 달 attendance_log 기준이다 — 출석률·위험군과 같은
+ * 기준이어야 "8월엔 수강한 학생이 없는데 전체 학생 3명" 같은 어긋남이 없다.
+ */
+export async function getMonthStudentCount(lectures: Lecture[], month: string): Promise<number> {
+  if (lectures.length === 0) return 0
+
+  const { start, end } = monthRange(month)
+
+  const { data, error } = await supabase
+    .from('attendance_log')
+    .select('student_id, students!inner(id)')
+    .in(
+      'lecture_id',
+      lectures.map((l) => l.id),
+    )
+    .is('deleted_at', null)
+    .is('students.deleted_at', null)
+    .gte('date', start)
+    .lte('date', end)
+
+  if (error) throw new Error(error.message)
+  return new Set((data ?? []).map((r) => r.student_id)).size
 }
 
 /** 내 강의 학생이 아니면 null (남의 학생 상세를 URL 로 열 수 없게) */

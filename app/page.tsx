@@ -8,8 +8,7 @@ import {
   getAllAttendance,
   getLectureAttendance,
   getLectures,
-  getNewStudentCount,
-  getStudentCount,
+  getMonthStudentCount,
   getTodayAttendance,
 } from '@/lib/queries'
 import { shiftMonth, todayKST } from '@/lib/utils'
@@ -45,7 +44,7 @@ export default async function DashboardPage({
   const prevMonth = shiftMonth(month, -1)
   const isCurrentMonth = month === currentMonth
 
-  const [lectures, studentCount] = await Promise.all([getLectures(teacher.id), getStudentCount(teacher.id)])
+  const lectures = await getLectures(teacher.id)
 
   if (lectures.length === 0) {
     return (
@@ -61,22 +60,26 @@ export default async function DashboardPage({
   const selected = lectures.find((l) => l.id === lecture_id) ?? null
   const scopeId = selected?.id ?? ALL
 
-  const [current, previous, todayLogs, newStudents, prevNewStudents] = await Promise.all([
+  const [current, previous, todayLogs, allMonthCount] = await Promise.all([
     selected ? getLectureAttendance(selected, month) : getAllAttendance(lectures, month),
     selected ? getLectureAttendance(selected, prevMonth) : getAllAttendance(lectures, prevMonth),
     isCurrentMonth && selected ? getTodayAttendance(selected.id) : Promise.resolve([]),
-    getNewStudentCount(teacher.id, month),
-    getNewStudentCount(teacher.id, prevMonth),
+    // 전체 탭 배지는 강의 전체 기준이라, 강의 하나를 골랐을 때만 따로 센다
+    selected ? getMonthStudentCount(lectures, month) : Promise.resolve(null),
   ])
 
+  // 모든 지표는 보고 있는 달 + 보고 있는 탭 기준이다 (current/previous 가 이미 그렇게 집계됨)
+  const studentCount = current.rows.length
   const avgRate = avgRateOf(current)
   const atRisk = current.rows.filter((r) => r.rate < 80).length
   const prevAtRisk = previous.rows.filter((r) => r.rate < 80).length
   const totalAttended = current.rows.reduce((s, r) => s + r.attended, 0)
 
+  // 전월에 출석 기록이 아예 없으면 0 과 비교한 증감(+85%p 같은)은 오해를 준다
+  const hasPrev = previous.rows.length > 0
   const rateDelta = delta(avgRate, avgRateOf(previous), '%p')
   const riskDelta = delta(atRisk, prevAtRisk, '명')
-  const studentDelta = delta(newStudents, prevNewStudents, '명')
+  const studentDelta = delta(studentCount, previous.rows.length, '명')
 
   const [y, m] = month.split('-').map(Number)
   const scopeName = selected?.lecture_name ?? '전체 강의'
@@ -120,18 +123,18 @@ export default async function DashboardPage({
     >
       <div className="mb-6 grid grid-cols-2 gap-3 lg:mb-7 lg:grid-cols-4 lg:gap-4">
         <StatsCard
-          label="전체 학생"
+          label={selected ? '수강 학생' : '전체 학생'}
           value={studentCount}
           unit="명"
-          sub={newStudents ? `↑ ${newStudents}명 이번 달 추가` : studentDelta.text}
-          trend={newStudents ? 'up' : studentDelta.trend}
+          sub={studentDelta.text}
+          trend={studentDelta.trend}
         />
         <StatsCard
           label="평균 출석률"
           value={avgRate}
           unit="%"
-          sub={rateDelta.text}
-          trend={rateDelta.trend}
+          sub={hasPrev ? rateDelta.text : '전월 기록 없음'}
+          trend={hasPrev ? rateDelta.trend : 'flat'}
           tone={avgRate >= 80 ? 'green' : avgRate >= 60 ? 'yellow' : 'red'}
         />
         {isCurrentMonth && selected ? (
@@ -149,9 +152,11 @@ export default async function DashboardPage({
           label="위험군 (80% 미만)"
           value={atRisk}
           unit="명"
-          sub={atRisk ? riskDelta.text : '없음'}
+          sub={atRisk && hasPrev ? riskDelta.text : '없음'}
           // 위험군은 줄어드는 게 좋으므로 증감 색을 뒤집는다
-          trend={atRisk ? (riskDelta.trend === 'up' ? 'down' : riskDelta.trend === 'down' ? 'up' : 'flat') : 'flat'}
+          trend={
+            atRisk && hasPrev ? (riskDelta.trend === 'up' ? 'down' : riskDelta.trend === 'down' ? 'up' : 'flat') : 'flat'
+          }
           tone="red"
         />
       </div>
@@ -162,7 +167,7 @@ export default async function DashboardPage({
         basePath="/"
         month={month}
         showCount
-        allStudentCount={studentCount}
+        allStudentCount={allMonthCount ?? studentCount}
       />
 
       <AttendanceTable
