@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'AttendAI — 출석 관리 시스템',
+  title: 'AttendNow — 출석 관리 시스템',
   description: 'QR 기반 강의 출석 관리',
 }
 

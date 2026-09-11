@@ -21,7 +21,7 @@ export default async function DonePage({
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6 py-7">
-      <div className="mb-8 text-[13px] text-text3">AttendAI</div>
+      <div className="mb-8 text-[13px] text-text3">AttendNow</div>
 
       <div className="w-full max-w-[400px] rounded-[20px] border border-border bg-surface px-6 py-8 text-center">
         <div className="mx-auto mb-5 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-green/12 text-[32px]">

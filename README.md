@@ -21,7 +21,6 @@ npm run dev
 | `SUPABASE_URL` | Supabase 프로젝트 Settings → API 의 Project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | 같은 화면의 `service_role` 키 — **서버 전용, 절대 공개 금지** |
 | `AUTH_SECRET` | 세션 토큰 서명 키. 32자 이상 임의 문자열. 바꾸면 전원 로그아웃됩니다 |
-| `SIGNUP_INVITE_CODE` | 회원가입 시 입력해야 하는 초대 코드 |
 | `SITE_URL` | (선택) QR 에 박을 주소. 커스텀 도메인을 붙였을 때만 지정합니다. Vercel 에서는 `VERCEL_PROJECT_PRODUCTION_URL` 이 자동으로 쓰이므로 보통 비워둡니다 |
 
 모두 `NEXT_PUBLIC_` 접두사가 없습니다. 브라우저로 나가지 않고 서버에서만 읽힙니다.

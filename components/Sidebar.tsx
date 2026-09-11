@@ -36,7 +36,7 @@ export default function Sidebar({
           📋
         </div>
         <div>
-          <div className="text-sm font-bold">AttendAI</div>
+          <div className="text-sm font-bold">AttendNow</div>
           <div className="mt-px text-[10px] text-text3">출석 관리 시스템</div>
         </div>
       </div>

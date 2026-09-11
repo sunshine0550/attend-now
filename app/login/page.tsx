@@ -66,7 +66,7 @@ function LoginForm() {
           autoComplete="username"
           value={loginId}
           onChange={(v) => setLoginId(v.replace(/\s/g, ''))}
-          placeholder="예: suhyun"
+          placeholder="예: attendnow"
         />
 
         <AuthField

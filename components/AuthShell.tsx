@@ -34,7 +34,7 @@ export default function AuthShell({
               📋
             </div>
             <div>
-              <div className="text-base font-bold">AttendAI</div>
+              <div className="text-base font-bold">AttendNow</div>
               <div className="text-[11px] text-text3">출석 관리 시스템</div>
             </div>
           </div>

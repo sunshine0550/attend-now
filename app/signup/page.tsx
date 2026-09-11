@@ -54,7 +54,7 @@ export default function SignupPage() {
   return (
     <AuthShell
       title="회원가입"
-      sub="초대 코드를 받은 선생님만 가입할 수 있습니다"
+      sub="기존 선생님에게 받은 초대 코드로 가입하세요"
       footer={<AuthSwitch label="이미 계정이 있으신가요?" href="/login" action="로그인" />}
     >
       <form onSubmit={submit} noValidate>
@@ -109,8 +109,9 @@ export default function SignupPage() {
           id="invite"
           label="초대 코드"
           value={invite}
-          onChange={setInvite}
-          placeholder="관리자에게 받은 코드"
+          onChange={(v) => setInvite(v.toUpperCase())}
+          placeholder="XXXX-XXXX-XXXX"
+          hint="한 번만 사용할 수 있고 7일 후 만료됩니다"
         />
 
         <button
