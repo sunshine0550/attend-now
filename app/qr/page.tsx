@@ -3,6 +3,7 @@ import LectureTabs from '@/components/LectureTabs'
 import LivePanel from '@/components/LivePanel'
 import QRCode from '@/components/QRCode'
 import Shell from '@/components/Shell'
+import { requireTeacher } from '@/lib/auth/session'
 import { getLectureAttendance, getLectures } from '@/lib/queries'
 import { attendUrl } from '@/lib/site-url'
 import { formatDateKo, formatTimeRange, todayKST } from '@/lib/utils'
@@ -11,12 +12,13 @@ export const dynamic = 'force-dynamic'
 
 export default async function QRPage({ searchParams }: { searchParams: Promise<{ lecture_id?: string }> }) {
   const { lecture_id } = await searchParams
+  const teacher = await requireTeacher()
   const month = todayKST().slice(0, 7)
-  const lectures = await getLectures()
+  const lectures = await getLectures(teacher.id)
 
   if (lectures.length === 0) {
     return (
-      <Shell title="QR 출석 코드" sub="등록된 강의가 없습니다">
+      <Shell teacherName={teacher.name} title="QR 출석 코드" sub="등록된 강의가 없습니다">
         <div className="rounded-xl border border-border bg-surface px-5 py-12 text-center text-[13px] text-text3">
           먼저 <span className="text-accent">강의 설정</span>에서 강의를 추가하세요
         </div>
@@ -28,7 +30,7 @@ export default async function QRPage({ searchParams }: { searchParams: Promise<{
   const { rows, sessionDates } = await getLectureAttendance(selected, month)
 
   return (
-    <Shell title="QR 출석 코드" sub="수업 시작 시 학생들에게 보여주세요">
+    <Shell teacherName={teacher.name} title="QR 출석 코드" sub="수업 시작 시 학생들에게 보여주세요">
       <LectureTabs lectures={lectures} selectedId={selected.id} basePath="/qr" />
 
       <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:gap-7">

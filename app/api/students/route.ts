@@ -1,16 +1,31 @@
 import { NextResponse } from 'next/server'
+import { requireTeacherApi } from '@/lib/auth/api'
 import { getStudents } from '@/lib/queries'
-import { supabase, TEACHER_ID } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
-export async function GET() {
+export async function GET(req: Request) {
+  const teacher = await requireTeacherApi()
+  if (teacher instanceof NextResponse) return teacher
+
+  const params = new URL(req.url).searchParams
+
   try {
-    return NextResponse.json(await getStudents())
+    return NextResponse.json(
+      await getStudents(teacher.id, {
+        q: params.get('q') ?? undefined,
+        cursor: params.get('cursor') ?? undefined,
+        limit: Number(params.get('limit')) || 10,
+      }),
+    )
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
   }
 }
 
 export async function POST(req: Request) {
+  const teacher = await requireTeacherApi()
+  if (teacher instanceof NextResponse) return teacher
+
   const { name, english_name, phone } = await req.json()
 
   if (!name || !english_name || !phone) {
@@ -19,7 +34,7 @@ export async function POST(req: Request) {
 
   const { data, error } = await supabase
     .from('students')
-    .insert({ name, english_name, phone, created_by: TEACHER_ID, updated_by: TEACHER_ID })
+    .insert({ name, english_name, phone, created_by: teacher.id, updated_by: teacher.id })
     .select()
     .single()
 

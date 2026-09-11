@@ -1,10 +1,17 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
-export default function StudentDeleteButton({ id, name }: { id: string; name: string }) {
-  const router = useRouter()
+export default function StudentDeleteButton({
+  id,
+  name,
+  onDeleted,
+}: {
+  id: string
+  name: string
+  /** 목록에서 즉시 지우기 위한 콜백 (서버 재조회 없이) */
+  onDeleted: () => void
+}) {
   const [busy, setBusy] = useState(false)
 
   async function remove() {
@@ -17,7 +24,7 @@ export default function StudentDeleteButton({ id, name }: { id: string; name: st
       setBusy(false)
       return alert(json.error ?? '삭제에 실패했습니다')
     }
-    router.refresh()
+    onDeleted()
   }
 
   return (

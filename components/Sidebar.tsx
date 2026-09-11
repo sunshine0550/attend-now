@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 const NAV = [
   { href: '/', icon: '📊', label: '대시보드' },
@@ -10,8 +11,23 @@ const NAV = [
   { href: '/qr', icon: '🔲', label: 'QR 띄우기' },
 ]
 
-export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+export default function Sidebar({
+  teacherName,
+  onNavigate,
+}: {
+  teacherName: string
+  onNavigate?: () => void
+}) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [signingOut, setSigningOut] = useState(false)
+
+  async function logout() {
+    setSigningOut(true)
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.replace('/login')
+    router.refresh()
+  }
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-surface py-6">
@@ -20,7 +36,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           📋
         </div>
         <div>
-          <div className="text-sm font-bold">AttendAI</div>
+          <div className="text-sm font-bold">AttendNow</div>
           <div className="mt-px text-[10px] text-text3">출석 관리 시스템</div>
         </div>
       </div>
@@ -44,6 +60,38 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           )
         })}
       </nav>
+
+      <div className="mt-auto border-t border-border px-3 pt-4">
+        <div className="mb-2 flex items-center gap-2.5 px-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface2 text-xs font-bold">
+            {teacherName.charAt(0)}
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-semibold">{teacherName}</div>
+            <div className="text-[10px] text-text3">선생님</div>
+          </div>
+        </div>
+
+        <Link
+          href="/account"
+          onClick={onNavigate}
+          className={`mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium ${
+            pathname.startsWith('/account') ? 'bg-accent/12 text-accent' : 'text-text2 hover:bg-white/[0.03]'
+          }`}
+        >
+          <span className="text-[15px]">⚙️</span>
+          계정 설정
+        </Link>
+
+        <button
+          onClick={logout}
+          disabled={signingOut}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-text3 hover:bg-white/[0.03] hover:text-red disabled:opacity-40"
+        >
+          <span className="text-[15px]">🚪</span>
+          {signingOut ? '로그아웃 중…' : '로그아웃'}
+        </button>
+      </div>
     </div>
   )
 }

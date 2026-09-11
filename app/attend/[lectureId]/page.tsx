@@ -10,7 +10,7 @@ export default async function AttendPage({ params }: { params: Promise<{ lecture
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6 py-7">
-      <div className="mb-8 text-[13px] text-text3">AttendAI</div>
+      <div className="mb-8 text-[13px] text-text3">AttendNow</div>
 
       <div className="w-full max-w-[400px] rounded-[20px] border border-border bg-surface px-6 py-7 text-center">
         {!lecture ? (

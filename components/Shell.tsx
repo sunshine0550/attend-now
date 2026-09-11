@@ -10,11 +10,13 @@ import Sidebar from './Sidebar'
  * lg 미만: 화면을 다 잡아먹지 않게 서랍(off-canvas)으로 숨기고 햄버거로 여닫는다.
  */
 export default function Shell({
+  teacherName,
   title,
   sub,
   action,
   children,
 }: {
+  teacherName: string
   title: string
   sub?: string
   action?: React.ReactNode
@@ -42,7 +44,7 @@ export default function Shell({
     <div className="lg:flex lg:min-h-screen">
       {/* 데스크톱 고정 사이드바 */}
       <aside className="hidden w-[220px] shrink-0 lg:block">
-        <Sidebar />
+        <Sidebar teacherName={teacherName} />
       </aside>
 
       {/* 모바일·태블릿 서랍 */}
@@ -57,7 +59,7 @@ export default function Shell({
             open ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <Sidebar onNavigate={() => setOpen(false)} />
+          <Sidebar teacherName={teacherName} onNavigate={() => setOpen(false)} />
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import EscBack from '@/components/EscBack'
 import LivePanel from '@/components/LivePanel'
 import QRCode from '@/components/QRCode'
+import { requireTeacher } from '@/lib/auth/session'
 import { getLecture, getLectureAttendance } from '@/lib/queries'
 import { attendUrl } from '@/lib/site-url'
 import { formatDateKo, formatTimeRange, todayKST } from '@/lib/utils'
@@ -14,10 +15,11 @@ export default async function FullscreenPage({
   searchParams: Promise<{ lecture_id?: string }>
 }) {
   const { lecture_id } = await searchParams
+  const teacher = await requireTeacher()
   if (!lecture_id) notFound()
 
   const month = todayKST().slice(0, 7)
-  const lecture = await getLecture(lecture_id)
+  const lecture = await getLecture(lecture_id, teacher.id)
   if (!lecture) notFound()
 
   const { rows } = await getLectureAttendance(lecture, month)

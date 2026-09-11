@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import Shell from '@/components/Shell'
 import StatsCard from '@/components/StatsCard'
+import { requireTeacher } from '@/lib/auth/session'
 import { getLectures, getStudentById, getStudentLogs } from '@/lib/queries'
 import { formatDateKo, monthRange, rateTone, todayKST } from '@/lib/utils'
 
@@ -11,12 +12,13 @@ const RATE_TEXT = { green: 'text-green', yellow: 'text-yellow', red: 'text-red' 
 
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const student = await getStudentById(id)
+  const teacher = await requireTeacher()
+  const student = await getStudentById(id, teacher.id)
   if (!student) notFound()
 
   const month = todayKST().slice(0, 7)
   const { start, end } = monthRange(month)
-  const [lectures, logs] = await Promise.all([getLectures(), getStudentLogs(student.id)])
+  const [lectures, logs] = await Promise.all([getLectures(teacher.id), getStudentLogs(student.id)])
 
   const monthLogs = logs.filter((l) => l.date >= start && l.date <= end)
 
@@ -40,7 +42,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   const tone = rateTone(avgRate)
 
   return (
-    <Shell title="학생 상세">
+    <Shell teacherName={teacher.name} title="학생 상세">
       <Link href="/students" className="mb-5 inline-block text-[13px] text-text3 hover:text-text2">
         ← 학생 목록
       </Link>
