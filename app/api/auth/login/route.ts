@@ -20,6 +20,17 @@ const SAME_ERROR = '아이디 또는 비밀번호가 올바르지 않습니다'
 const DUMMY_HASH = '$2b$12$.KWXojrChrnQAoIpdsUsBumrl645HHzGYRlS8JU5JuPx8g/Z5ylBW'
 
 export async function POST(req: Request) {
+  try {
+    return await handleLogin(req)
+  } catch (e) {
+    // 예외가 그대로 나가면 Next 가 JSON 아닌 500 을 반환해서
+    // 클라이언트가 "서버에 연결할 수 없습니다" 만 보여주고 원인을 알 수 없다.
+    console.error('[auth/login]', e)
+    return NextResponse.json({ error: `로그인 처리 중 오류: ${(e as Error).message}` }, { status: 500 })
+  }
+}
+
+async function handleLogin(req: Request) {
   const body = await req.json()
   const loginId = normalizeLoginId(String(body.login_id ?? ''))
   const password = String(body.password ?? '')

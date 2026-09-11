@@ -24,7 +24,10 @@ export const REFRESH_COOKIE = 'rt'
 function secret() {
   const raw = process.env.AUTH_SECRET
   if (!raw || raw.length < 32) {
-    throw new Error('.env.local 에 AUTH_SECRET 을 32자 이상으로 설정하세요')
+    throw new Error(
+      'AUTH_SECRET 환경변수가 없거나 32자보다 짧습니다. ' +
+        '로컬은 .env.local, 배포는 Vercel → Settings → Environment Variables 에 설정한 뒤 재배포하세요.',
+    )
   }
   return new TextEncoder().encode(raw)
 }

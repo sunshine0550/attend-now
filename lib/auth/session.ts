@@ -44,7 +44,11 @@ export async function issueSession(teacher: Teacher) {
     token_hash: await hashRefreshToken(refresh),
     expires_at: expiresAt.toISOString(),
   })
-  if (error) throw new Error(error.message)
+  if (error) {
+    // 테이블이 없으면(마이그레이션 미실행) 무엇을 해야 하는지 알려준다
+    const hint = error.code === '42P01' ? ' — refresh_tokens 테이블이 없습니다. DB 마이그레이션을 실행하세요.' : ''
+    throw new Error(`세션 저장 실패: ${error.message}${hint}`)
+  }
 
   jar.set(ACCESS_COOKIE, await signAccessToken({ teacherId: teacher.id, name: teacher.name }), cookieOptions(ACCESS_TTL_SEC))
   jar.set(REFRESH_COOKIE, refresh, cookieOptions(REFRESH_TTL_SEC))

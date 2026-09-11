@@ -9,6 +9,15 @@ import { supabase } from '@/lib/supabase'
 const BCRYPT_ROUNDS = 12
 
 export async function POST(req: Request) {
+  try {
+    return await handleSignup(req)
+  } catch (e) {
+    console.error('[auth/signup]', e)
+    return NextResponse.json({ error: `회원가입 처리 중 오류: ${(e as Error).message}` }, { status: 500 })
+  }
+}
+
+async function handleSignup(req: Request) {
   const body = await req.json()
   const name = String(body.name ?? '').trim()
   const loginId = normalizeLoginId(String(body.login_id ?? ''))

@@ -36,7 +36,14 @@ export default function SignupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, login_id: normalizeLoginId(loginId), password, invite: invite.trim() }),
       })
-      const json = await res.json()
+      // 서버가 JSON 아닌 응답(500 등)을 줄 수 있으므로 텍스트로 먼저 읽는다
+      const raw = await res.text()
+      let json: { error?: string } = {}
+      try {
+        json = JSON.parse(raw)
+      } catch {
+        json = { error: `서버 오류 (${res.status}): ${raw.slice(0, 200)}` }
+      }
 
       if (!res.ok) {
         setBusy(false)

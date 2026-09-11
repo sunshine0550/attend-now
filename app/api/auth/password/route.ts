@@ -19,6 +19,15 @@ const BCRYPT_ROUNDS = 12
  * 그리고 바로 새 세션을 발급해 본인은 로그아웃되지 않게 한다.
  */
 export async function POST(req: Request) {
+  try {
+    return await handleChange(req)
+  } catch (e) {
+    console.error('[auth/password]', e)
+    return NextResponse.json({ error: `비밀번호 변경 중 오류: ${(e as Error).message}` }, { status: 500 })
+  }
+}
+
+async function handleChange(req: Request) {
   const teacher = await requireTeacherApi()
   if (teacher instanceof NextResponse) return teacher
 
