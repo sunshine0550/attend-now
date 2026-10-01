@@ -15,26 +15,52 @@ import { supabase } from '@/lib/supabase'
 const MAX_ATTEMPTS = 5
 const WINDOW_MIN = 15
 
-export type RateLimitResult = { allowed: true } | { allowed: false; retryAfterMin: number }
+/**
+ * 3-상태 판별 유니온.
+ *
+ * allowed: boolean 에 필드를 덧붙이면 `if (!limit.allowed)` 가 "DB 장애"까지
+ * 429 로 흘려보낸다. 상태를 분리해 컴파일러가 세 분기를 모두 강제하게 한다.
+ */
+export type RateLimitResult =
+  | { status: 'allowed' }
+  | { status: 'blocked'; retryAfterMin: number }
+  | { status: 'unavailable' }
 
 export async function checkLoginAttempts(loginId: string): Promise<RateLimitResult> {
   const since = new Date(Date.now() - WINDOW_MIN * 60_000).toISOString()
 
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from('login_attempts')
     .select('id', { count: 'exact', head: true })
     .eq('login_id', loginId)
     .gte('attempted_at', since)
 
-  if ((count ?? 0) >= MAX_ATTEMPTS) return { allowed: false, retryAfterMin: WINDOW_MIN }
-  return { allowed: true }
+  // 조회 실패를 count 0 으로 폴백하면 제한이 조용히 풀린다. 모른다고 알린다.
+  if (error) {
+    console.error('[rate-limit] 시도 횟수 조회 실패', error.code, error.message)
+    return { status: 'unavailable' }
+  }
+
+  if ((count ?? 0) >= MAX_ATTEMPTS) return { status: 'blocked', retryAfterMin: WINDOW_MIN }
+  return { status: 'allowed' }
 }
 
+/**
+ * 기록 실패는 로그만 남기고 삼킨다.
+ *
+ * 여기서 throw 하면 정상적인 401 자격증명 오류가 500 으로 바뀌어,
+ * 사용자는 "비밀번호가 틀렸다"는 사실조차 알 수 없게 된다.
+ */
 export async function recordFailedLogin(loginId: string) {
-  await supabase.from('login_attempts').insert({ login_id: loginId })
+  const { error } = await supabase.from('login_attempts').insert({ login_id: loginId })
+  if (error) console.error('[rate-limit] 실패 기록 저장 실패', error.code, error.message)
 }
 
-/** 로그인 성공 시 그 아이디의 실패 기록을 지운다 */
+/**
+ * 로그인 성공 시 그 아이디의 실패 기록을 지운다.
+ * 삭제 실패로 throw 하면 이미 인증된 로그인이 500 이 된다. 로그만 남긴다.
+ */
 export async function clearLoginAttempts(loginId: string) {
-  await supabase.from('login_attempts').delete().eq('login_id', loginId)
+  const { error } = await supabase.from('login_attempts').delete().eq('login_id', loginId)
+  if (error) console.error('[rate-limit] 실패 기록 삭제 실패', error.code, error.message)
 }
