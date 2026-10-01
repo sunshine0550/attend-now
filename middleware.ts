@@ -13,8 +13,14 @@ import { ACCESS_COOKIE, REFRESH_COOKIE, verifyAccessToken } from '@/lib/auth/tok
  * 학생에게 계정을 요구하면 QR 출석이라는 제품 자체가 성립하지 않는다.
  */
 
-/** 로그인 없이 접근 가능한 경로 */
-const PUBLIC_PATHS = ['/login', '/signup', '/attend', '/done', '/api/auth']
+/**
+ * 로그인 없이 접근 가능한 경로.
+ *
+ * /api/cron 은 Vercel cron 이 쿠키 없이 호출하므로 미들웨어의 401 에 걸려
+ * 라우트까지 도달하지 못한다. 그래서 미들웨어는 통과시키되,
+ * 라우트 자체가 CRON_SECRET 으로 인증한다 — 무인증 공개가 아니다.
+ */
+const PUBLIC_PATHS = ['/login', '/signup', '/attend', '/done', '/api/auth', '/api/cron']
 
 function isPublic(pathname: string) {
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return true

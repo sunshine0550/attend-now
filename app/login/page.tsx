@@ -14,6 +14,9 @@ function LoginForm() {
   const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  // DB 장애는 "비밀번호가 틀렸다" 와 전혀 다른 상황이라 표시도 분리한다.
+  // 색만 바꾸면 색을 구분하지 못하는 사용자에게 같은 메시지가 되므로 제목 문구도 붙인다.
+  const [dbDown, setDbDown] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const valid = loginId.trim().length > 0 && password.length > 0
@@ -23,6 +26,7 @@ function LoginForm() {
     if (!valid || busy) return
 
     setError('')
+    setDbDown(false)
     setBusy(true)
 
     try {
@@ -33,15 +37,18 @@ function LoginForm() {
       })
       // 서버가 JSON 아닌 응답(500 등)을 줄 수 있으므로 텍스트로 먼저 읽는다
       const raw = await res.text()
-      let json: { error?: string } = {}
+      let json: { error?: string; code?: string } = {}
       try {
         json = JSON.parse(raw)
       } catch {
-        json = { error: `서버 오류 (${res.status}): ${raw.slice(0, 200)}` }
+        // 서버 본문을 그대로 뿌리면 내부 오류 내용이 화면에 노출된다. status 만 알린다.
+        json = { error: `서버 오류 (${res.status})가 발생했습니다. 잠시 후 다시 시도해 주세요` }
       }
 
       if (!res.ok) {
         setBusy(false)
+        // 문구 매칭은 메시지가 바뀌면 조용히 깨진다. status 와 code 로만 판단한다.
+        setDbDown(res.status === 503 || json.code === 'db_unavailable')
         return setError(json.error ?? '로그인에 실패했습니다')
       }
 
@@ -62,7 +69,13 @@ function LoginForm() {
     >
       <form onSubmit={submit} noValidate>
         {error && (
-          <div className="mb-4 rounded-[10px] border border-red/30 bg-red/10 px-4 py-3 text-[13px] text-red">
+          <div
+            role="alert"
+            className={`mb-4 rounded-[10px] border px-4 py-3 text-[13px] ${
+              dbDown ? 'border-yellow/30 bg-yellow/10 text-yellow' : 'border-red/30 bg-red/10 text-red'
+            }`}
+          >
+            {dbDown && <p className="mb-1 font-bold">서버 일시 장애</p>}
             {error}
           </div>
         )}
